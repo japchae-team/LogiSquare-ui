@@ -50,17 +50,17 @@ export default function PlacementStatusPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-slate-900">창고 배치 지도</h3>
         <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2">
-          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
           </svg>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="품목명으로 찾기"
-            className="w-48 text-sm outline-none"
+            className="w-40 text-sm outline-none sm:w-48"
           />
         </div>
       </div>
@@ -105,8 +105,8 @@ export default function PlacementStatusPage() {
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h4 className="mb-4 text-sm font-semibold text-slate-900">전체 재고 목록 ({sortedItems.length})</h4>
-        <div className="overflow-hidden rounded-xl border border-slate-100">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full min-w-[480px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-2.5">품목명</th>

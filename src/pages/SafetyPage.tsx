@@ -90,7 +90,7 @@ export default function SafetyPage() {
         />
       </div>
 
-      <div className="pointer-events-none fixed right-6 top-6 z-50 flex w-80 flex-col gap-2">
+      <div className="pointer-events-none fixed inset-x-4 top-4 z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-6 sm:top-6 sm:w-80">
         {liveAlerts.map((v) => {
           const style = TYPE_STYLE[v.type]
           return (
@@ -138,8 +138,8 @@ function ViolationLogTable({
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full min-w-[480px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-4 py-3">캡처 이미지</th>

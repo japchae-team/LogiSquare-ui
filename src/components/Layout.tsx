@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -19,6 +20,7 @@ const WORKER_MENU = [
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
   const menu = user?.role === 'admin' ? ADMIN_MENU : WORKER_MENU
 
   function handleLogout() {
@@ -26,9 +28,35 @@ export default function Layout() {
     navigate('/')
   }
 
+  function handleNavClick() {
+    setMenuOpen(false)
+  }
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+        <h1 className="text-lg font-bold text-slate-900">LogiSquare</h1>
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="메뉴 열기"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600"
+        >
+          {menuOpen ? '✕' : '☰'}
+        </button>
+      </header>
+
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:z-auto md:w-56 md:translate-x-0 ${
+          menuOpen ? 'translate-x-0' : ''
+        }`}
+      >
         <div className="px-5 py-6">
           <h1 className="text-lg font-bold text-slate-900">LogiSquare</h1>
           <p className="mt-1 text-xs text-slate-500">
@@ -40,6 +68,7 @@ export default function Layout() {
             <NavLink
               key={m.to}
               to={m.to}
+              onClick={handleNavClick}
               className={({ isActive }) =>
                 `rounded-lg px-4 py-2.5 text-sm font-medium transition ${
                   isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
@@ -59,7 +88,7 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <Outlet />
       </main>
     </div>

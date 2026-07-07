@@ -42,7 +42,7 @@ export default function CallApprovalPage() {
         {pending.map((c) => (
           <div
             key={c.id}
-            className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-4"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
           >
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -69,7 +69,7 @@ export default function CallApprovalPage() {
         {inProgress.map((c) => (
           <div
             key={c.id}
-            className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 p-4"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4"
           >
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -92,7 +92,7 @@ export default function CallApprovalPage() {
       <div className="space-y-3">
         {completed.length === 0 && <p className="text-sm text-slate-400">처리완료된 작업이 없습니다</p>}
         {completed.map((c) => (
-          <div key={c.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+          <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <TaskTypeBadge taskType={c.taskType} />
