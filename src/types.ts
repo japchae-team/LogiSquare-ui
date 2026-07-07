@@ -4,7 +4,6 @@ export interface User {
   id: string
   name: string
   role: Role
-  workerId?: string
 }
 
 export type Grade = 'A' | 'B' | 'C'

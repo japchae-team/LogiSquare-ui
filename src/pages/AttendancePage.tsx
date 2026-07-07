@@ -23,15 +23,19 @@ export default function AttendancePage() {
   const multiplier = PERIOD_MULTIPLIER[period]
 
   const rows = useMemo(() => {
-    const source = isAdmin ? workers : workers.filter((w) => w.id === user?.workerId)
-    const withPeriod = source.map((w) => ({
+    // 관리자 화면은 mock 작업자 목록으로 시연하고, 본인 화면은 실제 로그인 계정 이름만 표시한다
+    // (근태/작업 실적을 계정별로 조회하는 백엔드 API가 아직 없어 수치는 임시로 0)
+    if (!isAdmin) {
+      return user ? [{ id: user.id, name: user.name, status: '가용' as const, callAccepted: 0, tasksHandled: 0, checkIn: '-', checkOut: '-', violations: 0 }] : []
+    }
+    const withPeriod = workers.map((w) => ({
       ...w,
       callAccepted: w.callAccepted * multiplier,
       tasksHandled: w.tasksHandled * multiplier,
       violations: period === '일' ? w.violations : Math.round((w.violations * multiplier) / 3),
     }))
     return withPeriod.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [multiplier, period, isAdmin, user?.workerId])
+  }, [multiplier, period, isAdmin, user])
 
   const chartMax = Math.max(...rows.map((r) => r[chartKey]), 1)
   const chartMeta = METRICS[chartKey]
