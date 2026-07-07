@@ -3,7 +3,7 @@ import StatCard from '../components/StatCard'
 import { useAuth } from '../context/AuthContext'
 import { useCalls } from '../context/CallContext'
 import { useSafety } from '../context/SafetyContext'
-import { pendingInbound, workers } from '../data/mockData'
+import { pendingInbound } from '../data/mockData'
 
 type CardKey = 'progress' | 'workers' | 'safety' | 'inbound' | 'calls'
 
@@ -14,12 +14,21 @@ interface DashboardSummary {
   pendingInboundCount: number
 }
 
+interface WorkerStats {
+  workerId: number
+  name: string
+  status: string
+}
+
+const AVAILABLE_STATUSES = new Set(['AVAILABLE', 'ACTIVE', 'IDLE', '가용', '대기'])
+
 export default function HomePage() {
   const { user } = useAuth()
   const { calls } = useCalls()
   const { logs } = useSafety()
   const [openCard, setOpenCard] = useState<CardKey | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [workerStats, setWorkerStats] = useState<WorkerStats[]>([])
   const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
@@ -27,10 +36,15 @@ export default function HomePage() {
       .then((res) => (res.ok ? (res.json() as Promise<DashboardSummary>) : null))
       .then(setSummary)
       .catch(() => setSummary(null))
+
+    fetch('/api/attendance/workers/stats?period=일')
+      .then((res) => (res.ok ? (res.json() as Promise<WorkerStats[]>) : []))
+      .then(setWorkerStats)
+      .catch(() => setWorkerStats([]))
   }, [])
 
-  const availableWorkers = workers.filter((w) => w.status === '가용')
-  const busyWorkers = workers.filter((w) => w.status === '작업중')
+  const availableWorkers = workerStats.filter((w) => AVAILABLE_STATUSES.has(w.status))
+  const busyWorkers = workerStats.filter((w) => !AVAILABLE_STATUSES.has(w.status))
   const acceptedCalls = calls.filter((c) => c.status === '승인')
   const pendingCalls = calls.filter((c) => c.status === '대기')
   const activeViolations = logs.filter((v) => v.active)
@@ -98,7 +112,7 @@ export default function HomePage() {
             <SummaryBlock title="진행 중인 작업 현황">
               {busyWorkers.length === 0 && acceptedCalls.length === 0 && <EmptyRow text="진행 중인 작업이 없습니다" />}
               {busyWorkers.map((w) => (
-                <Row key={w.id} left={w.name} right="작업중" tone="blue" />
+                <Row key={w.workerId} left={w.name} right="작업중" tone="blue" />
               ))}
               {acceptedCalls.map((c) => (
                 <Row key={c.id} left={`[${c.taskType}] ${c.itemName} · ${c.workerName}`} right={c.location} tone="blue" />
@@ -110,7 +124,7 @@ export default function HomePage() {
             <SummaryBlock title="가용 작업자 현황">
               {availableWorkers.length === 0 && <EmptyRow text="가용한 작업자가 없습니다" />}
               {availableWorkers.map((w) => (
-                <Row key={w.id} left={w.name} right={`출근 ${w.checkIn}`} tone="emerald" />
+                <Row key={w.workerId} left={w.name} right="가용" tone="emerald" />
               ))}
             </SummaryBlock>
           )}

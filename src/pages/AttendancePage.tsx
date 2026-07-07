@@ -1,10 +1,8 @@
-import { useMemo, useState } from 'react'
-import { workers } from '../data/mockData'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import type { Period } from '../types'
 
 const PERIODS: Period[] = ['일', '주', '월', '년']
-const PERIOD_MULTIPLIER: Record<Period, number> = { 일: 1, 주: 5, 월: 20, 년: 240 }
 
 type MetricKey = 'callAccepted' | 'tasksHandled' | 'violations'
 
@@ -14,28 +12,34 @@ const METRICS: Record<MetricKey, { label: string; bar: string; text: string }> =
   violations: { label: '안전 위반 횟수', bar: 'bg-red-500', text: 'text-red-600' },
 }
 
+interface WorkerStats {
+  workerId: number
+  name: string
+  status: string
+  callAccepted: number
+  tasksHandled: number
+  violations: number
+}
+
 export default function AttendancePage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [period, setPeriod] = useState<Period>('일')
   const [chartKey, setChartKey] = useState<MetricKey>('tasksHandled')
+  const [stats, setStats] = useState<WorkerStats[]>([])
 
-  const multiplier = PERIOD_MULTIPLIER[period]
+  useEffect(() => {
+    fetch(`/api/attendance/workers/stats?period=${encodeURIComponent(period)}`)
+      .then((res) => (res.ok ? (res.json() as Promise<WorkerStats[]>) : []))
+      .then(setStats)
+      .catch(() => setStats([]))
+  }, [period])
 
   const rows = useMemo(() => {
-    // 관리자 화면은 mock 작업자 목록으로 시연하고, 본인 화면은 실제 로그인 계정 이름만 표시한다
-    // (근태/작업 실적을 계정별로 조회하는 백엔드 API가 아직 없어 수치는 임시로 0)
-    if (!isAdmin) {
-      return user ? [{ id: user.id, name: user.name, status: '가용' as const, callAccepted: 0, tasksHandled: 0, checkIn: '-', checkOut: '-', violations: 0 }] : []
-    }
-    const withPeriod = workers.map((w) => ({
-      ...w,
-      callAccepted: w.callAccepted * multiplier,
-      tasksHandled: w.tasksHandled * multiplier,
-      violations: period === '일' ? w.violations : Math.round((w.violations * multiplier) / 3),
-    }))
-    return withPeriod.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [multiplier, period, isAdmin, user])
+    // 작업자 본인 화면은 이름으로 매칭한다 (로그인 응답의 User.id와 근태 API의 workerId가 서로 다른 PK라 이름으로만 매칭 가능)
+    const source = isAdmin ? stats : stats.filter((w) => w.name === user?.name)
+    return [...source].sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [stats, isAdmin, user?.name])
 
   const chartMax = Math.max(...rows.map((r) => r[chartKey]), 1)
   const chartMeta = METRICS[chartKey]
@@ -96,13 +100,11 @@ export default function AttendancePage() {
                   <th className="px-4 py-3">안전 위반 횟수</th>
                 </>
               )}
-              <th className="px-4 py-3">출근</th>
-              <th className="px-4 py-3">퇴근</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((w) => (
-              <tr key={w.id} className="border-t border-slate-100">
+              <tr key={w.workerId} className="border-t border-slate-100">
                 <td className="px-4 py-3 font-medium text-slate-800">{w.name}</td>
                 <td className="px-4 py-3 text-slate-600">{w.callAccepted}</td>
                 <td className="px-4 py-3 text-slate-600">{w.tasksHandled}</td>
@@ -115,8 +117,6 @@ export default function AttendancePage() {
                     <span className="text-slate-400">0</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{w.checkIn}</td>
-                <td className="px-4 py-3 text-slate-600">{w.checkOut}</td>
               </tr>
             ))}
           </tbody>
@@ -130,7 +130,7 @@ export default function AttendancePage() {
           </h3>
           <div className="space-y-3">
             {rows.map((w) => (
-              <div key={w.id} className="flex items-center gap-3">
+              <div key={w.workerId} className="flex items-center gap-3">
                 <span className="w-16 shrink-0 text-sm text-slate-600">{w.name}</span>
                 <div className="h-5 flex-1 rounded bg-slate-100">
                   <div
