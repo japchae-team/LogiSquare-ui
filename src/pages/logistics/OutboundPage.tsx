@@ -25,6 +25,7 @@ export default function OutboundPage() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<OutboundResult | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [requestedInventoryIds, setRequestedInventoryIds] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     loadItems()
@@ -45,11 +46,13 @@ export default function OutboundPage() {
   }, [items, query])
 
   const selected = items.find((i) => i.inventoryId === selectedId) ?? null
+  const selectedAlreadyRequested = selected ? requestedInventoryIds.has(selected.inventoryId) : false
 
   const qtyNum = Number(qty)
-  const canShip = !!selected && qtyNum > 0 && qtyNum <= selected.quantity && !submitting
+  const canShip = !!selected && !selectedAlreadyRequested && qtyNum > 0 && qtyNum <= selected.quantity && !submitting
 
   function selectItem(id: number) {
+    if (requestedInventoryIds.has(id)) return
     setSelectedId(id)
     setQty('')
     setResult(null)
@@ -77,6 +80,8 @@ export default function OutboundPage() {
         sourceLocationCode: data.sourceLocationCode,
         sourceLocationName: data.sourceLocationName,
       })
+      // 같은 재고에 또 출고 요청을 만들면 재고가 먼저 빠져나가 완료 불가능한 중복 작업이 생기므로, 이 재고는 세션 내에서 다시 선택 못 하게 막는다
+      setRequestedInventoryIds((prev) => new Set(prev).add(selected.inventoryId))
       showToast('출고 등록 완료')
       setSelectedId(null)
       setQty('')
@@ -123,24 +128,33 @@ export default function OutboundPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((item) => (
-                <tr
-                  key={item.inventoryId}
-                  onClick={() => selectItem(item.inventoryId)}
-                  className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${
-                    selectedId === item.inventoryId ? 'bg-blue-50' : ''
-                  }`}
-                >
-                  <td className="px-4 py-2.5 font-medium text-slate-800">{item.itemName}</td>
-                  <td className="px-4 py-2.5 text-slate-600">{item.quantity}개</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[item.locationGrade].bg}`}>
-                      {item.locationGrade}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-600">{item.locationLabel}</td>
-                </tr>
-              ))}
+              {filteredItems.map((item) => {
+                const alreadyRequested = requestedInventoryIds.has(item.inventoryId)
+                return (
+                  <tr
+                    key={item.inventoryId}
+                    onClick={() => selectItem(item.inventoryId)}
+                    className={`border-t border-slate-100 ${
+                      alreadyRequested
+                        ? 'cursor-not-allowed text-slate-300'
+                        : `cursor-pointer hover:bg-slate-50 ${selectedId === item.inventoryId ? 'bg-blue-50' : ''}`
+                    }`}
+                  >
+                    <td className="px-4 py-2.5 font-medium">{item.itemName}</td>
+                    <td className="px-4 py-2.5">{item.quantity}개</td>
+                    <td className="px-4 py-2.5">
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs font-bold text-white ${
+                          alreadyRequested ? 'bg-slate-300' : GRADE_COLOR[item.locationGrade].bg
+                        }`}
+                      >
+                        {item.locationGrade}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5">{alreadyRequested ? '출고 요청됨' : item.locationLabel}</td>
+                  </tr>
+                )
+              })}
               {filteredItems.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-400">

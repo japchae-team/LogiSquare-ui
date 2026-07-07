@@ -20,6 +20,8 @@ export default function PlacementStatusPage() {
   const [query, setQuery] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [data, setData] = useState<InventoryResponse | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [requestedInventoryIds, setRequestedInventoryIds] = useState<Set<number>>(new Set())
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -41,29 +43,38 @@ export default function PlacementStatusPage() {
   const matched = data?.selectedResult ?? null
   const matchedSlot = matched ? (slots.find((s) => s.locationId === matched.locationId) ?? null) : null
 
+  const alreadyRequested = matched ? requestedInventoryIds.has(matched.inventoryId) : false
+
   async function handleCallWorker() {
     setConfirmOpen(false)
-    if (!matched) return
+    if (!matched || alreadyRequested || submitting) return
 
-    const outboundRes = await fetch('/api/outbound', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inventoryId: matched.inventoryId, quantity: matched.quantity }),
-    })
-    if (!outboundRes.ok) {
-      const body = await outboundRes.json().catch(() => null)
-      showToast(body?.message ?? '출고 등록에 실패했습니다', 'alert')
-      return
-    }
-    const outbound = await outboundRes.json()
+    setSubmitting(true)
+    try {
+      const outboundRes = await fetch('/api/outbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryId: matched.inventoryId, quantity: matched.quantity }),
+      })
+      if (!outboundRes.ok) {
+        const body = await outboundRes.json().catch(() => null)
+        showToast(body?.message ?? '출고 등록에 실패했습니다', 'alert')
+        return
+      }
+      const outbound = await outboundRes.json()
+      // 같은 재고에 다시 출고 지시를 누르면 재고가 이미 빠져나가 완료 불가능한 중복 작업이 생기므로, 이 재고는 세션 내에서 다시 요청 못 하게 막는다
+      setRequestedInventoryIds((prev) => new Set(prev).add(matched.inventoryId))
 
-    const callRes = await fetch(`/api/tasks/${outbound.taskId}/outbound-call`, { method: 'POST' })
-    if (!callRes.ok) {
-      showToast('현재 가용한 작업자가 없습니다', 'alert')
-      return
+      const callRes = await fetch(`/api/tasks/${outbound.taskId}/outbound-call`, { method: 'POST' })
+      if (!callRes.ok) {
+        showToast('현재 가용한 작업자가 없습니다', 'alert')
+        return
+      }
+      const call = (await callRes.json()) as TaskCallResult
+      showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
+    } finally {
+      setSubmitting(false)
     }
-    const call = (await callRes.json()) as TaskCallResult
-    showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
   }
 
   return (
@@ -109,9 +120,10 @@ export default function PlacementStatusPage() {
               {isAdmin && (
                 <button
                   onClick={() => setConfirmOpen(true)}
-                  className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  disabled={alreadyRequested || submitting}
+                  className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                  작업자 호출 (출고 지시)
+                  {alreadyRequested ? '이미 출고 요청됨' : '작업자 호출 (출고 지시)'}
                 </button>
               )}
             </div>
