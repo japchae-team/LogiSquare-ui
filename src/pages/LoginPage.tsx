@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
@@ -7,8 +7,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const { login } = useAuth()
+  const { user, login } = useAuth()
   const navigate = useNavigate()
+
+  if (user) return <Navigate to="/home" replace />
 
   const canSubmit = id.trim() !== '' && password.trim() !== '' && !submitting
 
@@ -59,9 +61,7 @@ export default function LoginPage() {
           {submitting ? '로그인 중...' : '로그인'}
         </button>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          테스트 계정 — 관리자: admin / admin123 · 작업자: worker / worker123
-        </p>
+        <p className="mt-4 text-center text-xs text-slate-400">실제 백엔드 계정으로 로그인하세요</p>
       </form>
     </div>
   )
