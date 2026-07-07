@@ -54,13 +54,17 @@ export default function InboundPage() {
   async function handleCallWorker() {
     setConfirmOpen(false)
     if (!result) return
-    const res = await fetch(`/api/tasks/${result.taskId}/call`, { method: 'POST' })
+    const res = await fetch(`/api/tasks/${result.taskId}/inbound-call`, { method: 'POST' })
     if (!res.ok) {
       showToast('현재 가용한 작업자가 없습니다', 'alert')
       return
     }
-    const call = (await res.json()) as TaskCallResult
-    showToast(`${call.workerName} 작업자에게 입고 호출을 전송했습니다`)
+    const calls = (await res.json()) as TaskCallResult[]
+    if (calls.length === 0) {
+      showToast('현재 가용한 작업자가 없습니다', 'alert')
+      return
+    }
+    showToast(`${calls.map((c) => c.workerName).join(', ')} 작업자에게 입고 호출을 전송했습니다`)
   }
 
   return (
