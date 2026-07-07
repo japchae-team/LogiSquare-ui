@@ -126,6 +126,7 @@ export default function HomePage() {
               {summary?.inProgressTasks.map((t) => (
                 <Row key={t.taskId} left={`${t.itemName} · ${t.quantity}개`} right={t.status} tone="blue" />
               ))}
+              <MoreNote shown={summary?.inProgressTasks.length ?? 0} total={summary?.inProgressTaskCount ?? 0} />
             </SummaryBlock>
           )}
 
@@ -135,6 +136,7 @@ export default function HomePage() {
               {summary?.availableWorkers.map((w) => (
                 <Row key={w.workerId} left={w.name} right="가용" tone="emerald" />
               ))}
+              <MoreNote shown={summary?.availableWorkers.length ?? 0} total={summary?.availableWorkerCount ?? 0} />
             </SummaryBlock>
           )}
 
@@ -149,6 +151,7 @@ export default function HomePage() {
                   tone="red"
                 />
               ))}
+              <MoreNote shown={summary?.safetyViolations.length ?? 0} total={summary?.safetyViolationCount ?? 0} />
             </SummaryBlock>
           )}
 
@@ -158,6 +161,7 @@ export default function HomePage() {
               {summary?.pendingInbounds.map((it) => (
                 <Row key={it.taskId} left={`${it.itemName} · ${it.quantity}개`} right={formatTime(it.requestedAt)} tone="amber" />
               ))}
+              <MoreNote shown={summary?.pendingInbounds.length ?? 0} total={summary?.pendingInboundCount ?? 0} />
             </SummaryBlock>
           )}
 
@@ -201,4 +205,10 @@ function Row({ left, right, tone }: { left: string; right: string; tone: 'blue' 
 
 function EmptyRow({ text }: { text: string }) {
   return <p className="py-2.5 text-sm text-slate-400">{text}</p>
+}
+
+function MoreNote({ shown, total }: { shown: number; total: number }) {
+  const remaining = total - shown
+  if (remaining <= 0) return null
+  return <p className="pt-2.5 text-xs text-slate-400">외 {remaining}건 더보기 (최근 {shown}건만 표시됩니다)</p>
 }
