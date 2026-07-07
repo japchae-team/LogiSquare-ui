@@ -1,12 +1,15 @@
-import { GRADE_COLOR, WAREHOUSE_COLS, WAREHOUSE_ROWS } from '../data/mockData'
-import { useInventory } from '../context/InventoryContext'
+import { GRADE_COLOR } from '../data/mockData'
+import type { InventorySlot } from '../types'
 
 interface WarehouseMapProps {
-  highlightSlotId?: string | null
+  slots: InventorySlot[]
+  highlightLocationId?: number | null
 }
 
-export default function WarehouseMap({ highlightSlotId }: WarehouseMapProps) {
-  const { items, slots } = useInventory()
+export default function WarehouseMap({ slots, highlightLocationId }: WarehouseMapProps) {
+  const rows = slots.length ? Math.max(...slots.map((s) => s.rowIndex)) + 1 : 0
+  const cols = slots.length ? Math.max(...slots.map((s) => s.columnIndex)) + 1 : 0
+
   return (
     <div>
       <div className="overflow-x-auto">
@@ -16,24 +19,25 @@ export default function WarehouseMap({ highlightSlotId }: WarehouseMapProps) {
               ◀ 출입구
             </span>
           </div>
-          <div
-            className="grid flex-1 gap-1.5"
-            style={{ gridTemplateColumns: `repeat(${WAREHOUSE_COLS}, minmax(0, 1fr))` }}
-          >
-            {Array.from({ length: WAREHOUSE_ROWS }).map((_, row) =>
-              Array.from({ length: WAREHOUSE_COLS }).map((_, col) => {
-                const slot = slots.find((s) => s.row === row && s.col === col)!
-                const item = items.find((i) => i.id === slot.itemId)
-                const isHighlight = slot.id === highlightSlotId
+          <div className="grid flex-1 gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            {Array.from({ length: rows }).map((_, row) =>
+              Array.from({ length: cols }).map((_, col) => {
+                const slot = slots.find((s) => s.rowIndex === row && s.columnIndex === col)
+                if (!slot) return <div key={`${row}-${col}`} />
+                const isHighlight = slot.locationId === highlightLocationId
                 return (
                   <div
-                    key={slot.id}
-                    title={item ? `${item.name} (${item.qty}개)` : '빈 슬롯'}
+                    key={slot.locationId}
+                    title={
+                      slot.occupied
+                        ? `${slot.itemNames.join(', ')} (${slot.storedQuantity}개)`
+                        : '빈 슬롯'
+                    }
                     className={`relative flex aspect-square items-center justify-center rounded-md text-[10px] font-semibold text-white transition ${
-                      item ? GRADE_COLOR[slot.grade].bg : 'bg-slate-100 text-slate-300'
+                      slot.occupied ? GRADE_COLOR[slot.locationGrade].bg : 'bg-slate-100 text-slate-300'
                     } ${isHighlight ? 'ring-4 ring-offset-1 ring-blue-500' : ''}`}
                   >
-                    {item ? slot.grade : ''}
+                    {slot.occupied ? slot.locationGrade : ''}
                   </div>
                 )
               }),

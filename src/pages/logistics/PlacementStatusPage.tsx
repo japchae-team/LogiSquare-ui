@@ -1,46 +1,48 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import WarehouseMap from '../../components/WarehouseMap'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { GRADE_COLOR } from '../../data/mockData'
-import { useInventory } from '../../context/InventoryContext'
 import { useCalls } from '../../context/CallContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
-import type { Slot } from '../../types'
+import type { InventoryItemRecord, InventorySlot } from '../../types'
 
-function slotLabel(slot: Slot) {
-  return `${slot.grade}구역 ${slot.row + 1}행 ${slot.col + 1}열 (${slot.id})`
+interface InventoryResponse {
+  inventoryItems: InventoryItemRecord[]
+  slots: InventorySlot[]
+  selectedResult?: InventoryItemRecord | null
 }
 
 export default function PlacementStatusPage() {
   const [query, setQuery] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const { items, slots } = useInventory()
+  const [data, setData] = useState<InventoryResponse | null>(null)
   const { sendCall } = useCalls()
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
-  const matched = useMemo(() => {
-    if (!query.trim()) return null
-    return items.find((i) => i.name.toLowerCase().includes(query.trim().toLowerCase())) ?? undefined
-  }, [query, items])
+  useEffect(() => {
+    const trimmed = query.trim()
+    const url = trimmed ? `/api/inventories/search?itemName=${encodeURIComponent(trimmed)}` : '/api/inventories/layout'
+    const timer = setTimeout(() => {
+      fetch(url)
+        .then((res) => (res.ok ? (res.json() as Promise<InventoryResponse>) : null))
+        .then(setData)
+        .catch(() => setData(null))
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [query])
 
-  const matchedSlot = matched ? slots.find((s) => s.id === matched.slotId) ?? null : null
-
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      const slotA = slots.find((s) => s.id === a.slotId)
-      const slotB = slots.find((s) => s.id === b.slotId)
-      if (!slotA || !slotB) return 0
-      return slotA.row - slotB.row || slotA.col - slotB.col
-    })
-  }, [items, slots])
+  const slots = data?.slots ?? []
+  const items = data?.inventoryItems ?? []
+  const matched = data?.selectedResult ?? null
+  const matchedSlot = matched ? (slots.find((s) => s.locationId === matched.locationId) ?? null) : null
 
   function handleCallWorker() {
     setConfirmOpen(false)
-    if (!matched || !matchedSlot) return
-    const call = sendCall(matched.name, slotLabel(matchedSlot), '출고')
+    if (!matched) return
+    const call = sendCall(matched.itemName, matched.locationLabel, '출고')
     if (call) {
       showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
     } else {
@@ -67,28 +69,26 @@ export default function PlacementStatusPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <WarehouseMap highlightSlotId={matchedSlot?.id ?? null} />
+          <WarehouseMap slots={slots} highlightLocationId={matchedSlot?.locationId ?? null} />
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h4 className="mb-3 text-sm font-semibold text-slate-900">검색 결과</h4>
           {!query.trim() && <p className="text-sm text-slate-400">품목명을 입력해 위치를 확인하세요</p>}
-          {query.trim() && matched === undefined && (
-            <p className="text-sm text-red-500">일치하는 품목이 없습니다</p>
-          )}
-          {matched && matchedSlot && (
+          {query.trim() && !matched && <p className="text-sm text-red-500">일치하는 품목이 없습니다</p>}
+          {matched && (
             <div className="space-y-2 text-sm text-slate-700">
               <p>
-                품목: <span className="font-semibold">{matched.name}</span>
+                품목: <span className="font-semibold">{matched.itemName}</span>
               </p>
               <p>
-                재고 수량: <span className="font-semibold">{matched.qty}개</span>
+                재고 수량: <span className="font-semibold">{matched.quantity}개</span>
               </p>
               <p>
-                등급: <span className="font-semibold">{matched.grade}등급</span>
+                등급: <span className="font-semibold">{matched.locationGrade}등급</span>
               </p>
               <p>
-                보관 위치: <span className="font-semibold">{slotLabel(matchedSlot)}</span>
+                보관 위치: <span className="font-semibold">{matched.locationLabel}</span>
               </p>
               {isAdmin && (
                 <button
@@ -104,7 +104,7 @@ export default function PlacementStatusPage() {
       </div>
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h4 className="mb-4 text-sm font-semibold text-slate-900">전체 재고 목록 ({sortedItems.length})</h4>
+        <h4 className="mb-4 text-sm font-semibold text-slate-900">전체 재고 목록 ({items.length})</h4>
         <div className="overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full min-w-[480px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -116,28 +116,25 @@ export default function PlacementStatusPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map((item) => {
-                const slot = slots.find((s) => s.id === item.slotId)
-                return (
-                  <tr
-                    key={item.id}
-                    onClick={() => setQuery(item.name)}
-                    className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${
-                      matched?.id === item.id ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-2.5 font-medium text-slate-800">{item.name}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{item.qty}개</td>
-                    <td className="px-4 py-2.5">
-                      <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[item.grade].bg}`}>
-                        {item.grade}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600">{slot ? slotLabel(slot) : '-'}</td>
-                  </tr>
-                )
-              })}
-              {sortedItems.length === 0 && (
+              {items.map((item) => (
+                <tr
+                  key={item.inventoryId}
+                  onClick={() => setQuery(item.itemName)}
+                  className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${
+                    matched?.inventoryId === item.inventoryId ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <td className="px-4 py-2.5 font-medium text-slate-800">{item.itemName}</td>
+                  <td className="px-4 py-2.5 text-slate-600">{item.quantity}개</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[item.locationGrade].bg}`}>
+                      {item.locationGrade}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-600">{item.locationLabel}</td>
+                </tr>
+              ))}
+              {items.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-400">
                     배치된 재고가 없습니다

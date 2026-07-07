@@ -1,7 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
-import { InventoryProvider } from './context/InventoryContext'
 import { CallProvider } from './context/CallContext'
 import { SafetyProvider } from './context/SafetyContext'
 import RequireAuth from './components/RequireAuth'
@@ -37,34 +36,32 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <InventoryProvider>
-          <CallProvider>
-            <SafetyProvider>
-              <Routes>
-                <Route path="/" element={<LoginPage />} />
-                <Route element={<RequireAuth />}>
-                  <Route element={<Layout />}>
-                    <Route path="/home" element={<HomePage />} />
-                    <Route path="/safety" element={<SafetyPage />} />
-                    <Route path="/attendance" element={<AttendancePage />} />
-                    <Route path="/calls" element={<CallApprovalPage />} />
-                    <Route path="/logistics" element={<LogisticsPage />}>
-                      <Route index element={<LogisticsIndex />} />
-                      <Route element={<RequireAdmin />}>
-                        <Route path="inbound" element={<InboundPage />} />
-                      </Route>
-                      <Route path="status" element={<PlacementStatusPage />} />
-                      <Route element={<RequireWorker />}>
-                        <Route path="outbound" element={<OutboundPage />} />
-                      </Route>
+        <CallProvider>
+          <SafetyProvider>
+            <Routes>
+              <Route path="/" element={<LoginPage />} />
+              <Route element={<RequireAuth />}>
+                <Route element={<Layout />}>
+                  <Route path="/home" element={<HomePage />} />
+                  <Route path="/safety" element={<SafetyPage />} />
+                  <Route path="/attendance" element={<AttendancePage />} />
+                  <Route path="/calls" element={<CallApprovalPage />} />
+                  <Route path="/logistics" element={<LogisticsPage />}>
+                    <Route index element={<LogisticsIndex />} />
+                    <Route element={<RequireAdmin />}>
+                      <Route path="inbound" element={<InboundPage />} />
+                    </Route>
+                    <Route path="status" element={<PlacementStatusPage />} />
+                    <Route element={<RequireWorker />}>
+                      <Route path="outbound" element={<OutboundPage />} />
                     </Route>
                   </Route>
                 </Route>
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </SafetyProvider>
-          </CallProvider>
-        </InventoryProvider>
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </SafetyProvider>
+        </CallProvider>
       </ToastProvider>
     </AuthProvider>
   )

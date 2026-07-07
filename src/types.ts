@@ -8,20 +8,32 @@ export interface User {
 
 export type Grade = 'A' | 'B' | 'C'
 
-export interface InventoryItem {
-  id: string
-  name: string
-  qty: number
-  grade: Grade
-  slotId: string
+export interface InventorySlot {
+  locationId: number
+  locationCode: string
+  locationName: string
+  areaCode: Grade
+  locationGrade: Grade
+  dangerArea: boolean
+  rowIndex: number
+  columnIndex: number
+  capacity: number
+  storedQuantity: number
+  occupied: boolean
+  matched: boolean
+  itemNames: string[]
 }
 
-export interface Slot {
-  id: string
-  row: number
-  col: number
-  grade: Grade
-  itemId: string | null
+export interface InventoryItemRecord {
+  inventoryId: number
+  itemId: number
+  sku: string
+  itemName: string
+  quantity: number
+  locationId: number
+  locationCode: string
+  locationGrade: Grade
+  locationLabel: string
 }
 
 export type ViolationType = '보호장비 미착용' | '위험구역 침입'

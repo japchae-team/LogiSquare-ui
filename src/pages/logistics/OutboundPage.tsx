@@ -1,48 +1,43 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { GRADE_COLOR } from '../../data/mockData'
-import { useInventory } from '../../context/InventoryContext'
 import { useToast } from '../../context/ToastContext'
-import type { Slot } from '../../types'
-
-function slotLabel(slot: Slot) {
-  return `${slot.grade}구역 ${slot.row + 1}행 ${slot.col + 1}열 (${slot.id})`
-}
+import type { InventoryItemRecord } from '../../types'
 
 export default function OutboundPage() {
-  const { items, slots, shipOut } = useInventory()
   const { showToast } = useToast()
+  const [items, setItems] = useState<InventoryItemRecord[]>([])
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [qty, setQty] = useState('')
+
+  useEffect(() => {
+    fetch('/api/inventories/layout')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setItems(data?.inventoryItems ?? []))
+      .catch(() => setItems([]))
+  }, [])
 
   const filteredItems = useMemo(() => {
     const list = query.trim()
-      ? items.filter((i) => i.name.toLowerCase().includes(query.trim().toLowerCase()))
+      ? items.filter((i) => i.itemName.toLowerCase().includes(query.trim().toLowerCase()))
       : items
-    return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    return [...list].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
   }, [items, query])
 
-  const selected = items.find((i) => i.id === selectedId) ?? null
-  const selectedSlot = selected ? slots.find((s) => s.id === selected.slotId) ?? null : null
+  const selected = items.find((i) => i.inventoryId === selectedId) ?? null
 
   const qtyNum = Number(qty)
-  const canShip = !!selected && qtyNum > 0 && qtyNum <= selected.qty
+  const canShip = !!selected && qtyNum > 0 && qtyNum <= selected.quantity
 
-  function selectItem(id: string) {
+  function selectItem(id: number) {
     setSelectedId(id)
     setQty('')
   }
 
   function handleShipOut() {
     if (!selected || !canShip) return
-    const result = shipOut(selected.id, qtyNum)
-    if (!result.ok) {
-      showToast(result.reason ?? '출고할 수 없습니다', 'alert')
-      return
-    }
-    showToast(result.removed ? '전량 출고되어 슬롯이 비워졌습니다' : '출고 완료')
-    setSelectedId(null)
-    setQty('')
+    // 출고 처리 API가 아직 없어서 실제로 반영되지는 않음
+    showToast('출고 처리 API가 아직 백엔드에 없어 처리할 수 없습니다', 'alert')
   }
 
   return (
@@ -69,27 +64,24 @@ export default function OutboundPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((item) => {
-                const slot = slots.find((s) => s.id === item.slotId)
-                return (
-                  <tr
-                    key={item.id}
-                    onClick={() => selectItem(item.id)}
-                    className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${
-                      selectedId === item.id ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-2.5 font-medium text-slate-800">{item.name}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{item.qty}개</td>
-                    <td className="px-4 py-2.5">
-                      <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[item.grade].bg}`}>
-                        {item.grade}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600">{slot ? slotLabel(slot) : '-'}</td>
-                  </tr>
-                )
-              })}
+              {filteredItems.map((item) => (
+                <tr
+                  key={item.inventoryId}
+                  onClick={() => selectItem(item.inventoryId)}
+                  className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${
+                    selectedId === item.inventoryId ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <td className="px-4 py-2.5 font-medium text-slate-800">{item.itemName}</td>
+                  <td className="px-4 py-2.5 text-slate-600">{item.quantity}개</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[item.locationGrade].bg}`}>
+                      {item.locationGrade}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-600">{item.locationLabel}</td>
+                </tr>
+              ))}
               {filteredItems.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-400">
@@ -105,29 +97,29 @@ export default function OutboundPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-base font-semibold text-slate-900">출고 처리</h3>
         {!selected && <p className="text-sm text-slate-400">왼쪽 목록에서 출고할 품목을 선택하세요</p>}
-        {selected && selectedSlot && (
+        {selected && (
           <div className="space-y-3 text-sm text-slate-700">
             <p>
-              품목: <span className="font-semibold">{selected.name}</span>
+              품목: <span className="font-semibold">{selected.itemName}</span>
             </p>
             <p>
-              현재 재고: <span className="font-semibold">{selected.qty}개</span>
+              현재 재고: <span className="font-semibold">{selected.quantity}개</span>
             </p>
             <p>
-              보관 위치: <span className="font-semibold">{slotLabel(selectedSlot)}</span>
+              보관 위치: <span className="font-semibold">{selected.locationLabel}</span>
             </p>
 
             <label className="mb-1 block text-sm font-medium text-slate-700">출고 수량</label>
             <input
               type="number"
               min={1}
-              max={selected.qty}
+              max={selected.quantity}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
-              placeholder={`최대 ${selected.qty}개`}
+              placeholder={`최대 ${selected.quantity}개`}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
-            {qty !== '' && qtyNum > selected.qty && (
+            {qty !== '' && qtyNum > selected.quantity && (
               <p className="text-xs font-medium text-red-600">재고 수량을 초과할 수 없습니다</p>
             )}
 
