@@ -4,6 +4,54 @@
  */
 
 export interface paths {
+    "/api/tasks/{taskId}/call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["callWorker"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inbound/recommend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recommend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dev/wifi-signals/dummy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createDummySignals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/workers": {
         parameters: {
             query?: never;
@@ -36,6 +84,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/{taskId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["complete"];
+        trace?: never;
+    };
+    "/api/task-assignments/{assignmentId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["reject"];
+        trace?: never;
+    };
+    "/api/task-assignments/{assignmentId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["accept"];
+        trace?: never;
+    };
+    "/api/workers/{workerId}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAssignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/my-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMyCalls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dashboard/summary": {
         parameters: {
             query?: never;
@@ -52,10 +180,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attendance/workers/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getWorkerStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        TaskCallResponse: {
+            /** Format: int64 */
+            taskId?: number;
+            /** Format: int64 */
+            assignmentId?: number;
+            alarmKey?: string;
+            /** Format: int64 */
+            workerId?: number;
+            employeeNo?: string;
+            workerName?: string;
+            assignmentStatus?: string;
+            nearestApCode?: string;
+            /** Format: int32 */
+            rssi?: number;
+            /** Format: int64 */
+            locationId?: number;
+            locationCode?: string;
+            /** Format: int32 */
+            locationPosX?: number;
+            /** Format: int32 */
+            locationPosY?: number;
+            /** Format: date-time */
+            calledAt?: string;
+        };
+        InboundRecommendRequest: {
+            itemName?: string;
+            /** Format: int32 */
+            quantity?: number;
+        };
+        InboundRecommendResponse: {
+            /** Format: int64 */
+            taskId?: number;
+            taskStatus?: string;
+            /** Format: int64 */
+            itemId?: number;
+            sku?: string;
+            itemName?: string;
+            /** Format: int32 */
+            quantity?: number;
+            /** @enum {string} */
+            recommendedGrade?: "A" | "B" | "C";
+            /** Format: int64 */
+            locationId?: number;
+            locationCode?: string;
+            locationName?: string;
+            /** @enum {string} */
+            areaCode?: "A" | "B" | "C";
+            dangerArea?: boolean;
+            /** Format: int32 */
+            posX?: number;
+            /** Format: int32 */
+            posY?: number;
+            /** Format: int32 */
+            capacity?: number;
+        };
+        CreateDummyWifiSignalsRequest: {
+            /** Format: int32 */
+            ttlSeconds?: number;
+            signals?: components["schemas"]["DummyWorkerWifiSignalRequest"][];
+        };
+        DummyWorkerWifiSignalRequest: {
+            /** Format: int64 */
+            workerId?: number;
+            employeeNo?: string;
+            rssiByApCode?: {
+                [key: string]: number;
+            };
+        };
+        CreateDummyWifiSignalsResponse: {
+            /** Format: int32 */
+            workerCount?: number;
+            /** Format: int32 */
+            accessPointCount?: number;
+            /** Format: int32 */
+            ttlSeconds?: number;
+            signals?: components["schemas"]["DummyWorkerWifiSignalResponse"][];
+        };
+        DummyWorkerWifiSignalResponse: {
+            /** Format: int64 */
+            workerId?: number;
+            employeeNo?: string;
+            redisKey?: string;
+            strongestApCode?: string;
+            rssiByApCode?: {
+                [key: string]: number;
+            };
+        };
         CreateWorkerAccountRequest: {
             loginId?: string;
             password?: string;
@@ -90,6 +321,62 @@ export interface components {
             accessToken?: string;
             user?: components["schemas"]["AuthUserResponse"];
         };
+        TaskActionResponse: {
+            /** Format: int64 */
+            taskId?: number;
+            /** Format: int64 */
+            assignmentId?: number;
+            /** Format: int64 */
+            workerId?: number;
+            taskStatus?: string;
+            assignmentStatus?: string;
+            /** Format: date-time */
+            respondedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+        };
+        WorkerAssignmentResponse: {
+            /** Format: int64 */
+            assignmentId?: number;
+            /** Format: int64 */
+            taskId?: number;
+            status?: string;
+            taskType?: string;
+            /** Format: int64 */
+            itemId?: number;
+            itemName?: string;
+            /** Format: int32 */
+            quantity?: number;
+            /** Format: int64 */
+            sourceLocationId?: number;
+            sourceLocationCode?: string;
+            /** Format: int64 */
+            targetLocationId?: number;
+            targetLocationCode?: string;
+            /** Format: date-time */
+            calledAt?: string;
+        };
+        DashboardInboundItemResponse: {
+            /** Format: int64 */
+            taskId?: number;
+            /** Format: int64 */
+            itemId?: number;
+            itemName?: string;
+            /** Format: int32 */
+            quantity?: number;
+            targetLocationCode?: string;
+            /** Format: date-time */
+            requestedAt?: string;
+        };
+        DashboardSafetyItemResponse: {
+            /** Format: int64 */
+            safetyEventId?: number;
+            eventType?: string;
+            locationCode?: string;
+            workerName?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
         DashboardSummaryResponse: {
             /** Format: int64 */
             inProgressTaskCount?: number;
@@ -99,6 +386,37 @@ export interface components {
             safetyViolationCount?: number;
             /** Format: int64 */
             pendingInboundCount?: number;
+            inProgressTasks?: components["schemas"]["DashboardTaskItemResponse"][];
+            availableWorkers?: components["schemas"]["DashboardWorkerItemResponse"][];
+            safetyViolations?: components["schemas"]["DashboardSafetyItemResponse"][];
+            pendingInbounds?: components["schemas"]["DashboardInboundItemResponse"][];
+        };
+        DashboardTaskItemResponse: {
+            /** Format: int64 */
+            taskId?: number;
+            itemName?: string;
+            /** Format: int32 */
+            quantity?: number;
+            status?: string;
+        };
+        DashboardWorkerItemResponse: {
+            /** Format: int64 */
+            workerId?: number;
+            employeeNo?: string;
+            name?: string;
+            status?: string;
+        };
+        WorkerAttendanceStatsResponse: {
+            /** Format: int64 */
+            workerId?: number;
+            name?: string;
+            status?: string;
+            /** Format: int64 */
+            callAccepted?: number;
+            /** Format: int64 */
+            tasksHandled?: number;
+            /** Format: int64 */
+            violations?: number;
         };
     };
     responses: never;
@@ -109,6 +427,76 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    callWorker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskCallResponse"];
+                };
+            };
+        };
+    };
+    recommend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboundRecommendRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InboundRecommendResponse"];
+                };
+            };
+        };
+    };
+    createDummySignals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateDummyWifiSignalsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreateDummyWifiSignalsResponse"];
+                };
+            };
+        };
+    };
     createWorkerAccount: {
         parameters: {
             query?: never;
@@ -157,6 +545,118 @@ export interface operations {
             };
         };
     };
+    complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskActionResponse"];
+                };
+            };
+        };
+    };
+    reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignmentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskActionResponse"];
+                };
+            };
+        };
+    };
+    accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignmentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskActionResponse"];
+                };
+            };
+        };
+    };
+    getAssignments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkerAssignmentResponse"][];
+                };
+            };
+        };
+    };
+    getMyCalls: {
+        parameters: {
+            query?: {
+                workerId?: number;
+            };
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkerAssignmentResponse"][];
+                };
+            };
+        };
+    };
     getSummary: {
         parameters: {
             query?: never;
@@ -173,6 +673,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+        };
+    };
+    getWorkerStats: {
+        parameters: {
+            query?: {
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkerAttendanceStatsResponse"][];
                 };
             };
         };
