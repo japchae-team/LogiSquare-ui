@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import StatCard from '../components/StatCard'
 import { useAuth } from '../context/AuthContext'
 import { useCalls } from '../context/CallContext'
@@ -7,12 +7,27 @@ import { pendingInbound, workers } from '../data/mockData'
 
 type CardKey = 'progress' | 'workers' | 'safety' | 'inbound' | 'calls'
 
+interface DashboardSummary {
+  inProgressTaskCount: number
+  availableWorkerCount: number
+  safetyViolationCount: number
+  pendingInboundCount: number
+}
+
 export default function HomePage() {
   const { user } = useAuth()
   const { calls } = useCalls()
   const { logs } = useSafety()
   const [openCard, setOpenCard] = useState<CardKey | null>(null)
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const isAdmin = user?.role === 'admin'
+
+  useEffect(() => {
+    fetch('/api/dashboard/summary')
+      .then((res) => (res.ok ? (res.json() as Promise<DashboardSummary>) : null))
+      .then(setSummary)
+      .catch(() => setSummary(null))
+  }, [])
 
   const availableWorkers = workers.filter((w) => w.status === '가용')
   const busyWorkers = workers.filter((w) => w.status === '작업중')
@@ -20,7 +35,11 @@ export default function HomePage() {
   const pendingCalls = calls.filter((c) => c.status === '대기')
   const activeViolations = logs.filter((v) => v.active)
 
-  const inProgressCount = busyWorkers.length + acceptedCalls.length
+  // 대시보드 요약 API가 실제 건수를 내려주면 그 값을 쓰고, 실패 시에만 mock 데이터로 계산
+  const inProgressCount = summary?.inProgressTaskCount ?? busyWorkers.length + acceptedCalls.length
+  const availableWorkerCount = summary?.availableWorkerCount ?? availableWorkers.length
+  const safetyViolationCount = summary?.safetyViolationCount ?? activeViolations.length
+  const pendingInboundCount = summary?.pendingInboundCount ?? pendingInbound.length
 
   function toggle(key: CardKey) {
     setOpenCard((prev) => (prev === key ? null : key))
@@ -41,7 +60,7 @@ export default function HomePage() {
         />
         <StatCard
           label="가용 작업자 수"
-          value={availableWorkers.length}
+          value={availableWorkerCount}
           unit="명"
           accent="text-emerald-600"
           active={openCard === 'workers'}
@@ -49,7 +68,7 @@ export default function HomePage() {
         />
         <StatCard
           label="안전 위반 건수"
-          value={activeViolations.length}
+          value={safetyViolationCount}
           accent="text-red-600"
           active={openCard === 'safety'}
           onClick={() => toggle('safety')}
@@ -57,7 +76,7 @@ export default function HomePage() {
         {isAdmin ? (
           <StatCard
             label="입고 대기 건수"
-            value={pendingInbound.length}
+            value={pendingInboundCount}
             accent="text-amber-600"
             active={openCard === 'inbound'}
             onClick={() => toggle('inbound')}
