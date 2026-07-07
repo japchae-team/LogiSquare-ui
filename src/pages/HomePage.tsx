@@ -2,33 +2,60 @@ import { useEffect, useState, type ReactNode } from 'react'
 import StatCard from '../components/StatCard'
 import { useAuth } from '../context/AuthContext'
 import { useCalls } from '../context/CallContext'
-import { useSafety } from '../context/SafetyContext'
-import { pendingInbound } from '../data/mockData'
 
 type CardKey = 'progress' | 'workers' | 'safety' | 'inbound' | 'calls'
+
+interface DashboardTaskItem {
+  taskId: number
+  itemName: string
+  quantity: number
+  status: string
+}
+
+interface DashboardWorkerItem {
+  workerId: number
+  employeeNo: string
+  name: string
+  status: string
+}
+
+interface DashboardSafetyItem {
+  safetyEventId: number
+  eventType: string
+  locationCode: string
+  workerName: string
+  occurredAt: string
+}
+
+interface DashboardInboundItem {
+  taskId: number
+  itemId: number
+  itemName: string
+  quantity: number
+  targetLocationCode: string
+  requestedAt: string
+}
 
 interface DashboardSummary {
   inProgressTaskCount: number
   availableWorkerCount: number
   safetyViolationCount: number
   pendingInboundCount: number
+  inProgressTasks: DashboardTaskItem[]
+  availableWorkers: DashboardWorkerItem[]
+  safetyViolations: DashboardSafetyItem[]
+  pendingInbounds: DashboardInboundItem[]
 }
 
-interface WorkerStats {
-  workerId: number
-  name: string
-  status: string
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
-
-const AVAILABLE_STATUSES = new Set(['AVAILABLE', 'ACTIVE', 'IDLE', '가용', '대기'])
 
 export default function HomePage() {
   const { user } = useAuth()
   const { calls } = useCalls()
-  const { logs } = useSafety()
   const [openCard, setOpenCard] = useState<CardKey | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
-  const [workerStats, setWorkerStats] = useState<WorkerStats[]>([])
   const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
@@ -36,24 +63,9 @@ export default function HomePage() {
       .then((res) => (res.ok ? (res.json() as Promise<DashboardSummary>) : null))
       .then(setSummary)
       .catch(() => setSummary(null))
-
-    fetch('/api/attendance/workers/stats?period=일')
-      .then((res) => (res.ok ? (res.json() as Promise<WorkerStats[]>) : []))
-      .then(setWorkerStats)
-      .catch(() => setWorkerStats([]))
   }, [])
 
-  const availableWorkers = workerStats.filter((w) => AVAILABLE_STATUSES.has(w.status))
-  const busyWorkers = workerStats.filter((w) => !AVAILABLE_STATUSES.has(w.status))
-  const acceptedCalls = calls.filter((c) => c.status === '승인')
   const pendingCalls = calls.filter((c) => c.status === '대기')
-  const activeViolations = logs.filter((v) => v.active)
-
-  // 대시보드 요약 API가 실제 건수를 내려주면 그 값을 쓰고, 실패 시에만 mock 데이터로 계산
-  const inProgressCount = summary?.inProgressTaskCount ?? busyWorkers.length + acceptedCalls.length
-  const availableWorkerCount = summary?.availableWorkerCount ?? availableWorkers.length
-  const safetyViolationCount = summary?.safetyViolationCount ?? activeViolations.length
-  const pendingInboundCount = summary?.pendingInboundCount ?? pendingInbound.length
 
   function toggle(key: CardKey) {
     setOpenCard((prev) => (prev === key ? null : key))
@@ -67,14 +79,14 @@ export default function HomePage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="진행 중 작업 수"
-          value={inProgressCount}
+          value={summary?.inProgressTaskCount ?? 0}
           accent="text-blue-600"
           active={openCard === 'progress'}
           onClick={() => toggle('progress')}
         />
         <StatCard
           label="가용 작업자 수"
-          value={availableWorkerCount}
+          value={summary?.availableWorkerCount ?? 0}
           unit="명"
           accent="text-emerald-600"
           active={openCard === 'workers'}
@@ -82,7 +94,7 @@ export default function HomePage() {
         />
         <StatCard
           label="안전 위반 건수"
-          value={safetyViolationCount}
+          value={summary?.safetyViolationCount ?? 0}
           accent="text-red-600"
           active={openCard === 'safety'}
           onClick={() => toggle('safety')}
@@ -90,7 +102,7 @@ export default function HomePage() {
         {isAdmin ? (
           <StatCard
             label="입고 대기 건수"
-            value={pendingInboundCount}
+            value={summary?.pendingInboundCount ?? 0}
             accent="text-amber-600"
             active={openCard === 'inbound'}
             onClick={() => toggle('inbound')}
@@ -110,20 +122,17 @@ export default function HomePage() {
         <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {openCard === 'progress' && (
             <SummaryBlock title="진행 중인 작업 현황">
-              {busyWorkers.length === 0 && acceptedCalls.length === 0 && <EmptyRow text="진행 중인 작업이 없습니다" />}
-              {busyWorkers.map((w) => (
-                <Row key={w.workerId} left={w.name} right="작업중" tone="blue" />
-              ))}
-              {acceptedCalls.map((c) => (
-                <Row key={c.id} left={`[${c.taskType}] ${c.itemName} · ${c.workerName}`} right={c.location} tone="blue" />
+              {(summary?.inProgressTasks.length ?? 0) === 0 && <EmptyRow text="진행 중인 작업이 없습니다" />}
+              {summary?.inProgressTasks.map((t) => (
+                <Row key={t.taskId} left={`${t.itemName} · ${t.quantity}개`} right={t.status} tone="blue" />
               ))}
             </SummaryBlock>
           )}
 
           {openCard === 'workers' && (
             <SummaryBlock title="가용 작업자 현황">
-              {availableWorkers.length === 0 && <EmptyRow text="가용한 작업자가 없습니다" />}
-              {availableWorkers.map((w) => (
+              {(summary?.availableWorkers.length ?? 0) === 0 && <EmptyRow text="가용한 작업자가 없습니다" />}
+              {summary?.availableWorkers.map((w) => (
                 <Row key={w.workerId} left={w.name} right="가용" tone="emerald" />
               ))}
             </SummaryBlock>
@@ -131,18 +140,23 @@ export default function HomePage() {
 
           {openCard === 'safety' && (
             <SummaryBlock title="현재 발생 중인 안전 위반">
-              {activeViolations.length === 0 && <EmptyRow text="현재 발생 중인 위반이 없습니다" />}
-              {activeViolations.map((v) => (
-                <Row key={v.id} left={`${v.type} · ${v.zone}`} right={v.time} tone="red" />
+              {(summary?.safetyViolations.length ?? 0) === 0 && <EmptyRow text="현재 발생 중인 위반이 없습니다" />}
+              {summary?.safetyViolations.map((v) => (
+                <Row
+                  key={v.safetyEventId}
+                  left={`${v.eventType} · ${v.locationCode}`}
+                  right={formatTime(v.occurredAt)}
+                  tone="red"
+                />
               ))}
             </SummaryBlock>
           )}
 
           {openCard === 'inbound' && (
             <SummaryBlock title="입고 대기 품목">
-              {pendingInbound.length === 0 && <EmptyRow text="입고 대기 품목이 없습니다" />}
-              {pendingInbound.map((it) => (
-                <Row key={it.id} left={`${it.name} · ${it.qty}개`} right={it.requestedAt} tone="amber" />
+              {(summary?.pendingInbounds.length ?? 0) === 0 && <EmptyRow text="입고 대기 품목이 없습니다" />}
+              {summary?.pendingInbounds.map((it) => (
+                <Row key={it.taskId} left={`${it.itemName} · ${it.quantity}개`} right={formatTime(it.requestedAt)} tone="amber" />
               ))}
             </SummaryBlock>
           )}

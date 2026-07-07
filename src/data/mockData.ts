@@ -64,13 +64,6 @@ export const violationLogs: ViolationLog[] = [
   { id: 'v4', time: '2026-07-02 08:05', zone: 'C구역 3열', type: '위험구역 침입', active: false },
 ]
 
-export const pendingInbound: Array<{ id: string; name: string; qty: number; requestedAt: string }> = [
-  { id: 'in-1', name: '천장형 선풍기', qty: 45, requestedAt: '09:20' },
-  { id: 'in-2', name: '방진 매트', qty: 80, requestedAt: '10:05' },
-  { id: 'in-3', name: '지게차 배터리', qty: 12, requestedAt: '10:40' },
-  { id: 'in-4', name: 'PVC 커튼', qty: 30, requestedAt: '11:15' },
-  { id: 'in-5', name: '안전 고깔', qty: 60, requestedAt: '11:50' },
-]
 
 export const workers: WorkerRecord[] = [
   { id: 'w1', name: '김도윤', status: '가용', callAccepted: 18, tasksHandled: 42, checkIn: '08:58', checkOut: '18:02', violations: 0 },
