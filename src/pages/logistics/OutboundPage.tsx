@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { GRADE_COLOR } from '../../data/mockData'
 import { useToast } from '../../context/ToastContext'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import type { InventoryItemRecord } from '../../types'
+
+interface OutboundResult {
+  taskId: number
+  itemName: string
+  quantity: number
+  sourceLocationCode: string
+  sourceLocationName: string
+}
+
+interface TaskCallResult {
+  workerName: string
+}
 
 export default function OutboundPage() {
   const { showToast } = useToast()
@@ -9,13 +22,20 @@ export default function OutboundPage() {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [qty, setQty] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<OutboundResult | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(() => {
+    loadItems()
+  }, [])
+
+  function loadItems() {
     fetch('/api/inventories/layout')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setItems(data?.inventoryItems ?? []))
       .catch(() => setItems([]))
-  }, [])
+  }
 
   const filteredItems = useMemo(() => {
     const list = query.trim()
@@ -27,17 +47,56 @@ export default function OutboundPage() {
   const selected = items.find((i) => i.inventoryId === selectedId) ?? null
 
   const qtyNum = Number(qty)
-  const canShip = !!selected && qtyNum > 0 && qtyNum <= selected.quantity
+  const canShip = !!selected && qtyNum > 0 && qtyNum <= selected.quantity && !submitting
 
   function selectItem(id: number) {
     setSelectedId(id)
     setQty('')
+    setResult(null)
   }
 
-  function handleShipOut() {
+  async function handleShipOut() {
     if (!selected || !canShip) return
-    // 출고 처리 API가 아직 없어서 실제로 반영되지는 않음
-    showToast('출고 처리 API가 아직 백엔드에 없어 처리할 수 없습니다', 'alert')
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/outbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryId: selected.inventoryId, quantity: qtyNum }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        showToast(body?.message ?? '출고 처리에 실패했습니다', 'alert')
+        return
+      }
+      const data = await res.json()
+      setResult({
+        taskId: data.taskId,
+        itemName: data.itemName,
+        quantity: data.quantity,
+        sourceLocationCode: data.sourceLocationCode,
+        sourceLocationName: data.sourceLocationName,
+      })
+      showToast('출고 등록 완료')
+      setSelectedId(null)
+      setQty('')
+      loadItems()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleCallWorker() {
+    setConfirmOpen(false)
+    if (!result) return
+    const res = await fetch(`/api/tasks/${result.taskId}/outbound-call`, { method: 'POST' })
+    if (!res.ok) {
+      showToast('현재 가용한 작업자가 없습니다', 'alert')
+      return
+    }
+    const call = (await res.json()) as TaskCallResult
+    showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
+    setResult(null)
   }
 
   return (
@@ -96,7 +155,7 @@ export default function OutboundPage() {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-base font-semibold text-slate-900">출고 처리</h3>
-        {!selected && <p className="text-sm text-slate-400">왼쪽 목록에서 출고할 품목을 선택하세요</p>}
+        {!selected && !result && <p className="text-sm text-slate-400">왼쪽 목록에서 출고할 품목을 선택하세요</p>}
         {selected && (
           <div className="space-y-3 text-sm text-slate-700">
             <p>
@@ -128,11 +187,37 @@ export default function OutboundPage() {
               disabled={!canShip}
               className="w-full rounded-lg bg-purple-600 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              출고 처리
+              {submitting ? '처리 중...' : '출고 처리'}
+            </button>
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-5 rounded-xl border border-purple-200 bg-purple-50 p-4">
+            <p className="text-sm text-purple-800">
+              <span className="font-semibold">{result.itemName}</span> ({result.quantity}개) →{' '}
+              <span className="font-semibold">
+                {result.sourceLocationName} ({result.sourceLocationCode})
+              </span>{' '}
+              에서 출고 등록 완료
+            </p>
+            <button
+              onClick={() => setConfirmOpen(true)}
+              className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              작업자 호출 (출고 지시)
             </button>
           </div>
         )}
       </div>
+
+      {confirmOpen && (
+        <ConfirmDialog
+          message="작업자를 호출하여 출고를 지시하시겠습니까?"
+          onConfirm={handleCallWorker}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      )}
     </div>
   )
 }

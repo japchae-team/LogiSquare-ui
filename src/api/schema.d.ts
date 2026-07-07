@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/tasks/{taskId}/call": {
+    "/api/tasks/{taskId}/outbound-call": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,7 +13,39 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["callWorker"];
+        post: operations["callOutboundWorker"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{taskId}/inbound-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["callInboundWorkers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createOutboundTask"];
         delete?: never;
         options?: never;
         head?: never;
@@ -164,6 +196,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/inventories/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inventories/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dashboard/summary": {
         parameters: {
             query?: never;
@@ -223,6 +287,36 @@ export interface components {
             locationPosY?: number;
             /** Format: date-time */
             calledAt?: string;
+        };
+        OutboundRequest: {
+            /** Format: int64 */
+            inventoryId?: number;
+            /** Format: int32 */
+            quantity?: number;
+        };
+        OutboundResponse: {
+            /** Format: int64 */
+            taskId?: number;
+            taskStatus?: string;
+            /** Format: int64 */
+            inventoryId?: number;
+            /** Format: int64 */
+            itemId?: number;
+            itemName?: string;
+            /** Format: int32 */
+            quantity?: number;
+            /** Format: int64 */
+            sourceLocationId?: number;
+            sourceLocationCode?: string;
+            sourceLocationName?: string;
+            /** @enum {string} */
+            areaCode?: "A" | "B" | "C";
+            /** Format: int32 */
+            sourceLocationPosX?: number;
+            /** Format: int32 */
+            sourceLocationPosY?: number;
+            /** Format: int32 */
+            availableQuantity?: number;
         };
         InboundRecommendRequest: {
             itemName?: string;
@@ -356,6 +450,86 @@ export interface components {
             /** Format: date-time */
             calledAt?: string;
         };
+        InventorySearchResponse: {
+            keyword?: string;
+            /** Format: int32 */
+            resultCount?: number;
+            /** Format: int32 */
+            totalInventoryCount?: number;
+            /** Format: int32 */
+            totalQuantity?: number;
+            selectedResult?: components["schemas"]["InventorySearchResultResponse"];
+            searchResults?: components["schemas"]["InventorySearchResultResponse"][];
+            inventoryItems?: components["schemas"]["InventorySearchResultResponse"][];
+            slots?: components["schemas"]["InventorySlotResponse"][];
+        };
+        InventorySearchResultResponse: {
+            /** Format: int64 */
+            inventoryId?: number;
+            /** Format: int64 */
+            itemId?: number;
+            sku?: string;
+            itemName?: string;
+            category?: string;
+            /** Format: int32 */
+            quantity?: number;
+            /** Format: int64 */
+            locationId?: number;
+            locationCode?: string;
+            locationName?: string;
+            /** @enum {string} */
+            areaCode?: "A" | "B" | "C";
+            /** @enum {string} */
+            locationGrade?: "A" | "B" | "C";
+            dangerArea?: boolean;
+            /** Format: int32 */
+            posX?: number;
+            /** Format: int32 */
+            posY?: number;
+            /** Format: int32 */
+            rowIndex?: number;
+            /** Format: int32 */
+            columnIndex?: number;
+            locationLabel?: string;
+            /** Format: int32 */
+            capacity?: number;
+            /** Format: date-time */
+            lastMovedAt?: string;
+        };
+        InventorySlotResponse: {
+            /** Format: int64 */
+            locationId?: number;
+            locationCode?: string;
+            locationName?: string;
+            /** @enum {string} */
+            areaCode?: "A" | "B" | "C";
+            /** @enum {string} */
+            locationGrade?: "A" | "B" | "C";
+            dangerArea?: boolean;
+            /** Format: int32 */
+            posX?: number;
+            /** Format: int32 */
+            posY?: number;
+            /** Format: int32 */
+            rowIndex?: number;
+            /** Format: int32 */
+            columnIndex?: number;
+            /** Format: int32 */
+            capacity?: number;
+            /** Format: int32 */
+            storedQuantity?: number;
+            occupied?: boolean;
+            matched?: boolean;
+            itemNames?: string[];
+        };
+        InventoryLayoutResponse: {
+            /** Format: int32 */
+            totalInventoryCount?: number;
+            /** Format: int32 */
+            totalQuantity?: number;
+            inventoryItems?: components["schemas"]["InventorySearchResultResponse"][];
+            slots?: components["schemas"]["InventorySlotResponse"][];
+        };
         DashboardInboundItemResponse: {
             /** Format: int64 */
             taskId?: number;
@@ -427,7 +601,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    callWorker: {
+    callOutboundWorker: {
         parameters: {
             query?: never;
             header?: never;
@@ -445,6 +619,52 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TaskCallResponse"];
+                };
+            };
+        };
+    };
+    callInboundWorkers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TaskCallResponse"][];
+                };
+            };
+        };
+    };
+    createOutboundTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutboundRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OutboundResponse"];
                 };
             };
         };
@@ -653,6 +873,48 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WorkerAssignmentResponse"][];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query: {
+                itemName: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InventorySearchResponse"];
+                };
+            };
+        };
+    };
+    getLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InventoryLayoutResponse"];
                 };
             };
         };

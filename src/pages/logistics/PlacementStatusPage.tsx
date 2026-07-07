@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import WarehouseMap from '../../components/WarehouseMap'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { GRADE_COLOR } from '../../data/mockData'
-import { useCalls } from '../../context/CallContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import type { InventoryItemRecord, InventorySlot } from '../../types'
@@ -13,11 +12,14 @@ interface InventoryResponse {
   selectedResult?: InventoryItemRecord | null
 }
 
+interface TaskCallResult {
+  workerName: string
+}
+
 export default function PlacementStatusPage() {
   const [query, setQuery] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [data, setData] = useState<InventoryResponse | null>(null)
-  const { sendCall } = useCalls()
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -39,15 +41,29 @@ export default function PlacementStatusPage() {
   const matched = data?.selectedResult ?? null
   const matchedSlot = matched ? (slots.find((s) => s.locationId === matched.locationId) ?? null) : null
 
-  function handleCallWorker() {
+  async function handleCallWorker() {
     setConfirmOpen(false)
     if (!matched) return
-    const call = sendCall(matched.itemName, matched.locationLabel, '출고')
-    if (call) {
-      showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
-    } else {
-      showToast('현재 가용한 작업자가 없습니다', 'alert')
+
+    const outboundRes = await fetch('/api/outbound', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inventoryId: matched.inventoryId, quantity: matched.quantity }),
+    })
+    if (!outboundRes.ok) {
+      const body = await outboundRes.json().catch(() => null)
+      showToast(body?.message ?? '출고 등록에 실패했습니다', 'alert')
+      return
     }
+    const outbound = await outboundRes.json()
+
+    const callRes = await fetch(`/api/tasks/${outbound.taskId}/outbound-call`, { method: 'POST' })
+    if (!callRes.ok) {
+      showToast('현재 가용한 작업자가 없습니다', 'alert')
+      return
+    }
+    const call = (await callRes.json()) as TaskCallResult
+    showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
   }
 
   return (

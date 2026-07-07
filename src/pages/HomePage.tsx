@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import StatCard from '../components/StatCard'
 import { useAuth } from '../context/AuthContext'
-import { useCalls } from '../context/CallContext'
 
 type CardKey = 'progress' | 'workers' | 'safety' | 'inbound' | 'calls'
 
@@ -47,15 +46,30 @@ interface DashboardSummary {
   pendingInbounds: DashboardInboundItem[]
 }
 
+interface WorkerStats {
+  workerId: number
+  name: string
+}
+
+interface MyCall {
+  assignmentId: number
+  status: string
+  taskType: string
+  itemName: string
+  quantity: number
+  sourceLocationCode: string | null
+  targetLocationCode: string | null
+}
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function HomePage() {
   const { user } = useAuth()
-  const { calls } = useCalls()
   const [openCard, setOpenCard] = useState<CardKey | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [myCalls, setMyCalls] = useState<MyCall[]>([])
   const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
@@ -65,7 +79,21 @@ export default function HomePage() {
       .catch(() => setSummary(null))
   }, [])
 
-  const pendingCalls = calls.filter((c) => c.status === '대기')
+  useEffect(() => {
+    if (isAdmin || !user) return
+    fetch('/api/attendance/workers/stats')
+      .then((res) => (res.ok ? (res.json() as Promise<WorkerStats[]>) : []))
+      .then((workers) => {
+        const self = workers.find((w) => w.name === user.name)
+        if (!self) return
+        return fetch(`/api/tasks/my-calls?workerId=${self.workerId}`)
+          .then((res) => (res.ok ? (res.json() as Promise<MyCall[]>) : []))
+          .then(setMyCalls)
+      })
+      .catch(() => setMyCalls([]))
+  }, [isAdmin, user])
+
+  const pendingCalls = myCalls.filter((c) => c.status === 'CALLED')
 
   function toggle(key: CardKey) {
     setOpenCard((prev) => (prev === key ? null : key))
@@ -169,7 +197,12 @@ export default function HomePage() {
             <SummaryBlock title="대기 중인 호출">
               {pendingCalls.length === 0 && <EmptyRow text="대기 중인 호출이 없습니다" />}
               {pendingCalls.map((c) => (
-                <Row key={c.id} left={`[${c.taskType}] ${c.itemName} · ${c.location}`} right={c.requestedAt} tone="amber" />
+                <Row
+                  key={c.assignmentId}
+                  left={`[${c.taskType === 'INBOUND' ? '입고' : '출고'}] ${c.itemName} · ${c.quantity}개`}
+                  right={c.targetLocationCode ?? c.sourceLocationCode ?? '-'}
+                  tone="amber"
+                />
               ))}
             </SummaryBlock>
           )}

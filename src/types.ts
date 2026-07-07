@@ -46,31 +46,4 @@ export interface ViolationLog {
   active: boolean
 }
 
-export type WorkerStatus = '가용' | '작업중' | '휴식'
-
-export interface WorkerRecord {
-  id: string
-  name: string
-  status: WorkerStatus
-  callAccepted: number
-  tasksHandled: number
-  checkIn: string
-  checkOut: string
-  violations: number
-}
-
 export type Period = '일' | '주' | '월' | '년'
-
-export type CallStatus = '대기' | '승인' | '완료'
-export type CallTaskType = '입고' | '출고'
-
-export interface CallRequest {
-  id: string
-  itemName: string
-  location: string
-  workerId: string
-  workerName: string
-  requestedAt: string
-  status: CallStatus
-  taskType: CallTaskType
-}
