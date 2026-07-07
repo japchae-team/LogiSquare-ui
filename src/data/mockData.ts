@@ -47,12 +47,6 @@ export const items: InventoryItem[] = initialItems.map((it, idx) => {
   return { id: `item-${idx}`, name: it.name, qty: it.qty, grade, slotId }
 })
 
-export function gradeForQty(qty: number): Grade {
-  if (qty >= 150) return 'A'
-  if (qty >= 50) return 'B'
-  return 'C'
-}
-
 export function findEmptySlotForGrade(grade: Grade): Slot | null {
   return slots.find((s) => s.grade === grade && s.itemId === null) ?? null
 }

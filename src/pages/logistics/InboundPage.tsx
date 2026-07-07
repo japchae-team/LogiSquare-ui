@@ -1,62 +1,71 @@
 import { useState, type FormEvent } from 'react'
 import { GRADE_COLOR } from '../../data/mockData'
-import { useInventory } from '../../context/InventoryContext'
-import { useCalls } from '../../context/CallContext'
 import { useToast } from '../../context/ToastContext'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import type { Grade, Slot } from '../../types'
+import type { Grade } from '../../types'
 
-function slotLabel(slot: Slot) {
-  return `${slot.grade}구역 ${slot.row + 1}행 ${slot.col + 1}열 (${slot.id})`
+interface InboundRecommendResult {
+  taskId: number
+  itemName: string
+  quantity: number
+  recommendedGrade: Grade
+  locationCode: string
+  locationName: string
+}
+
+interface TaskCallResult {
+  workerName: string
 }
 
 export default function InboundPage() {
   const [name, setName] = useState('')
   const [qty, setQty] = useState('')
-  const [suggestion, setSuggestion] = useState<{ grade: Grade; slot: Slot | null } | null>(null)
-  const [saved, setSaved] = useState<{ name: string; slot: Slot } | null>(null)
+  const [result, setResult] = useState<InboundRecommendResult | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const { previewPlacement, placeItem } = useInventory()
-  const { sendCall } = useCalls()
   const { showToast } = useToast()
 
-  const canCheck = name.trim() !== '' && Number(qty) > 0
+  const canSubmit = name.trim() !== '' && Number(qty) > 0 && !submitting
 
-  function handleCheck(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!canCheck) return
-    setSuggestion(previewPlacement(Number(qty)))
-    setSaved(null)
+    if (!canSubmit) return
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/inbound/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemName: name.trim(), quantity: Number(qty) }),
+      })
+      if (!res.ok) {
+        showToast('입고 등록에 실패했습니다', 'alert')
+        return
+      }
+      const data = (await res.json()) as InboundRecommendResult
+      setResult(data)
+      showToast('입고 등록 완료')
+      setName('')
+      setQty('')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  function handleSave() {
-    if (!canCheck) return
-    const result = placeItem(name.trim(), Number(qty))
-    if (!result.ok || !result.slot) {
-      showToast('해당 등급의 빈 슬롯이 없습니다', 'alert')
+  async function handleCallWorker() {
+    setConfirmOpen(false)
+    if (!result) return
+    const res = await fetch(`/api/tasks/${result.taskId}/call`, { method: 'POST' })
+    if (!res.ok) {
+      showToast('현재 가용한 작업자가 없습니다', 'alert')
       return
     }
-    showToast('배치 완료')
-    setSaved({ name: name.trim(), slot: result.slot })
-    setName('')
-    setQty('')
-    setSuggestion(null)
-  }
-
-  function handleCallWorker() {
-    setConfirmOpen(false)
-    if (!saved) return
-    const call = sendCall(saved.name, slotLabel(saved.slot), '입고')
-    if (call) {
-      showToast(`${call.workerName} 작업자에게 입고 호출을 전송했습니다`)
-    } else {
-      showToast('현재 가용한 작업자가 없습니다', 'alert')
-    }
+    const call = (await res.json()) as TaskCallResult
+    showToast(`${call.workerName} 작업자에게 입고 호출을 전송했습니다`)
   }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <form onSubmit={handleCheck} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-base font-semibold text-slate-900">신규 입고 품목</h3>
 
         <label className="mb-1 block text-sm font-medium text-slate-700">품목명</label>
@@ -79,41 +88,26 @@ export default function InboundPage() {
 
         <button
           type="submit"
-          disabled={!canCheck}
+          disabled={!canSubmit}
           className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          배치 위치 확인
+          {submitting ? '등록 중...' : '입고 등록'}
         </button>
 
-        {suggestion && (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[suggestion.grade].bg}`}>
-                {suggestion.grade}등급
-              </span>
-              <span className="text-sm text-slate-600">{GRADE_COLOR[suggestion.grade].label}</span>
-            </div>
-            {suggestion.slot ? (
-              <p className="text-sm text-slate-700">
-                권장 배치 위치: <span className="font-semibold">{slotLabel(suggestion.slot)}</span>
-              </p>
-            ) : (
-              <p className="text-sm font-medium text-red-600">해당 등급 구역에 빈 슬롯이 없습니다</p>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={!suggestion.slot}
-              className="mt-4 w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              저장
-            </button>
-          </div>
-        )}
-
-        {saved && (
+        {result && (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${GRADE_COLOR[result.recommendedGrade].bg}`}>
+                {result.recommendedGrade}등급
+              </span>
+              <span className="text-sm text-slate-600">{GRADE_COLOR[result.recommendedGrade].label}</span>
+            </div>
             <p className="text-sm text-emerald-800">
-              <span className="font-semibold">{saved.name}</span> → {slotLabel(saved.slot)} 배치 완료
+              <span className="font-semibold">{result.itemName}</span> ({result.quantity}개) →{' '}
+              <span className="font-semibold">
+                {result.locationName} ({result.locationCode})
+              </span>{' '}
+              배치 완료
             </p>
             <button
               onClick={() => setConfirmOpen(true)}
