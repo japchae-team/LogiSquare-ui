@@ -6,15 +6,18 @@ export default function LoginPage() {
   const [id, setId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const canSubmit = id.trim() !== '' && password.trim() !== ''
+  const canSubmit = id.trim() !== '' && password.trim() !== '' && !submitting
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
-    const ok = login(id.trim(), password)
+    setSubmitting(true)
+    const ok = await login(id.trim(), password)
+    setSubmitting(false)
     if (!ok) {
       setError('아이디 또는 비밀번호를 확인하세요')
       return
@@ -53,7 +56,7 @@ export default function LoginPage() {
           disabled={!canSubmit}
           className="mt-4 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          로그인
+          {submitting ? '로그인 중...' : '로그인'}
         </button>
 
         <p className="mt-4 text-center text-xs text-slate-400">
