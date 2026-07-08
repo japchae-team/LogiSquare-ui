@@ -6,6 +6,7 @@ import type { InventoryItemRecord } from '../../types'
 
 interface OutboundResult {
   taskId: number
+  inventoryId: number
   itemName: string
   quantity: number
   sourceLocationCode: string
@@ -75,17 +76,15 @@ export default function OutboundPage() {
       const data = await res.json()
       setResult({
         taskId: data.taskId,
+        inventoryId: selected.inventoryId,
         itemName: data.itemName,
         quantity: data.quantity,
         sourceLocationCode: data.sourceLocationCode,
         sourceLocationName: data.sourceLocationName,
       })
-      // 같은 재고에 또 출고 요청을 만들면 재고가 먼저 빠져나가 완료 불가능한 중복 작업이 생기므로, 이 재고는 세션 내에서 다시 선택 못 하게 막는다
-      setRequestedInventoryIds((prev) => new Set(prev).add(selected.inventoryId))
       showToast('출고 등록 완료')
       setSelectedId(null)
       setQty('')
-      loadItems()
     } finally {
       setSubmitting(false)
     }
@@ -96,12 +95,15 @@ export default function OutboundPage() {
     if (!result) return
     const res = await fetch(`/api/tasks/${result.taskId}/outbound-call`, { method: 'POST' })
     if (!res.ok) {
-      showToast('현재 가용한 작업자가 없습니다', 'alert')
+      showToast('현재 가용한 작업자가 없습니다. 잠시 후 다시 시도해주세요', 'alert')
       return
     }
     const call = (await res.json()) as TaskCallResult
     showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
+    // 호출까지 실제로 성공했을 때만 이 재고를 세션 내에서 다시 선택 못 하게 막는다 (재고가 이미 빠져나가 완료 불가능한 중복 작업 방지)
+    setRequestedInventoryIds((prev) => new Set(prev).add(result.inventoryId))
     setResult(null)
+    loadItems()
   }
 
   return (

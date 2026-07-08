@@ -22,6 +22,7 @@ export default function PlacementStatusPage() {
   const [data, setData] = useState<InventoryResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [requestedInventoryIds, setRequestedInventoryIds] = useState<Set<number>>(new Set())
+  const [pendingOutboundTaskIds, setPendingOutboundTaskIds] = useState<Map<number, number>>(new Map())
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -51,27 +52,38 @@ export default function PlacementStatusPage() {
 
     setSubmitting(true)
     try {
-      const outboundRes = await fetch('/api/outbound', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inventoryId: matched.inventoryId, quantity: matched.quantity }),
-      })
-      if (!outboundRes.ok) {
-        const body = await outboundRes.json().catch(() => null)
-        showToast(body?.message ?? '출고 등록에 실패했습니다', 'alert')
-        return
+      // 같은 재고에 이미 만들어둔 출고 작업이 있으면(직전 호출이 가용 작업자 없음으로 실패한 경우) 새로 만들지 않고 그 작업으로 재시도한다
+      let taskId = pendingOutboundTaskIds.get(matched.inventoryId)
+      if (taskId === undefined) {
+        const outboundRes = await fetch('/api/outbound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inventoryId: matched.inventoryId, quantity: matched.quantity }),
+        })
+        if (!outboundRes.ok) {
+          const body = await outboundRes.json().catch(() => null)
+          showToast(body?.message ?? '출고 등록에 실패했습니다', 'alert')
+          return
+        }
+        const outbound = await outboundRes.json()
+        taskId = outbound.taskId as number
+        setPendingOutboundTaskIds((prev) => new Map(prev).set(matched.inventoryId, taskId as number))
       }
-      const outbound = await outboundRes.json()
-      // 같은 재고에 다시 출고 지시를 누르면 재고가 이미 빠져나가 완료 불가능한 중복 작업이 생기므로, 이 재고는 세션 내에서 다시 요청 못 하게 막는다
-      setRequestedInventoryIds((prev) => new Set(prev).add(matched.inventoryId))
 
-      const callRes = await fetch(`/api/tasks/${outbound.taskId}/outbound-call`, { method: 'POST' })
+      const callRes = await fetch(`/api/tasks/${taskId}/outbound-call`, { method: 'POST' })
       if (!callRes.ok) {
-        showToast('현재 가용한 작업자가 없습니다', 'alert')
+        showToast('현재 가용한 작업자가 없습니다. 잠시 후 다시 시도해주세요', 'alert')
         return
       }
       const call = (await callRes.json()) as TaskCallResult
       showToast(`${call.workerName} 작업자에게 출고 호출을 전송했습니다`)
+      // 호출까지 실제로 성공했을 때만 이 재고를 세션 내에서 다시 요청 못 하게 막는다 (재고가 이미 빠져나가 완료 불가능한 중복 작업 방지)
+      setRequestedInventoryIds((prev) => new Set(prev).add(matched.inventoryId))
+      setPendingOutboundTaskIds((prev) => {
+        const next = new Map(prev)
+        next.delete(matched.inventoryId)
+        return next
+      })
     } finally {
       setSubmitting(false)
     }
