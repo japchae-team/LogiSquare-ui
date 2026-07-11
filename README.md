@@ -93,9 +93,9 @@ src/
 | `/api/inventories/layout`, `/search?itemName=` | GET | 배치 현황(지도+검색+목록), 출고 품목 선택 |
 | `/api/safety/events` (+ `eventType`/`status`/`storageLocationCode` 필터) | GET | 안전 관리 목록 + "현재 발생 중인 위반" |
 | `/api/safety/events/{eventId}` | GET | 안전 이벤트 상세 모달 (captureUrl, 보호장비 착용 여부 등) |
-| `/api/safety/events/{eventId}/assign-worker` | PATCH | **위반자** 지정 — 캡처 이미지를 보고 관리자가 "누가 위반했는지"를 지목하는 것이지, 조치하러 갈 사람을 배정하는 게 아님 |
-| `/api/safety/events/{eventId}/resolve` | PATCH | 조치 완료 처리 |
-| `/api/safety/events/{eventId}/notify-nearby-workers` | POST | 근처 작업자에게 알림 (출고 호출과 동일하게 Wi-Fi RSSI 필요) |
+| `/api/safety/events/{eventId}/assign-worker` | PATCH | **위반자** 지정 — 캡처 이미지를 보고 관리자가 "누가 위반했는지"를 지목하는 것이지, 조치하러 갈 사람을 배정하는 게 아님. **관리자 전용** |
+| `/api/safety/events/{eventId}/resolve` | PATCH | 조치 완료 처리. **관리자 또는 해당 이벤트의 위반자로 지정된 본인만** (프론트에서 `workerName === 로그인한 이름`으로 매칭) |
+| `/api/safety/events/{eventId}/notify-nearby-workers` | POST | 근처 작업자에게 알림 (출고 호출과 동일하게 Wi-Fi RSSI 필요). **관리자 전용** |
 | `/api/dev/wifi-signals/dummy` | POST | **UI에서 호출 안 함** — 개발용 Wi-Fi 더미 신호 주입 (아래 3번 참고) |
 
 ---
@@ -125,7 +125,7 @@ src/
 ```
 /                    로그인 (로그인 상태면 /home으로 자동 리다이렉트)
 /home                양쪽 공통
-/safety              관리자만 (RequireAdmin 가드, 워커는 /home으로 튕김) — 사이드바 메뉴 자체는 작업자에게도 보임
+/safety              양쪽 공통 — 조회는 누구나 가능, 지정/알림/조치완료는 화면 안에서 역할별로 버튼이 갈림 (아래 5번 참고)
 /attendance          양쪽 공통 (내용은 역할별로 분기)
 /calls               작업자 전용 화면이지만 라우트 가드는 없음 — 관리자는 사이드바에 메뉴 자체가 없음
 /logistics
@@ -156,11 +156,14 @@ src/
 - **배치 현황** (공통): `/api/inventories/layout`(기본) 또는 `/search?itemName=`(검색 중)로 창고 그리드 + 재고 목록을 그림. 관리자는 검색된 품목 전량에 대해 "작업자 호출 (출고 지시)" 가능 (`/api/outbound` → `/api/tasks/{id}/outbound-call`).
 - **출고** (작업자 전용): 재고 목록에서 품목 선택 → 수량 입력 → "출고 처리"(`/api/outbound`로 작업 생성) → "작업자 호출"(`/api/tasks/{id}/outbound-call`).
 
-### 안전 관리 (관리자 전용)
-- "현재 발생 중인 위반" 카드 그리드(미해결 이벤트) + 5초짜리 실시간 알림 팝업(소리 포함) + 전체 이력 테이블. 행/카드를 클릭하면 상세 모달이 열립니다.
-- 상세 모달: CCTV 캡처 이미지, 보호장비 착용 여부, **위반자 지정**(`assign-worker` — 이미지 보고 누가 위반했는지 관리자가 지목하는 것), 근처 작업자 알림(`notify-nearby-workers`), 조치 완료 처리(`resolve`).
+### 안전 관리 (양쪽 공통, 단 조작 권한은 역할별로 다름)
+- "현재 발생 중인 위반" 카드 그리드(미해결 이벤트) + 5초짜리 실시간 알림 팝업(소리 포함) + 전체 이력 테이블. **조회는 관리자·작업자 모두 동일하게 가능**합니다. 행/카드를 클릭하면 상세 모달이 열립니다.
+- 상세 모달 공통 표시: CCTV 캡처 이미지, 보호장비 착용 여부, 위반자, 처리자, 메모.
+- 상세 모달 버튼은 역할/본인 여부에 따라 갈립니다:
+  - **위반자 지정**(`assign-worker` — 이미지 보고 누가 위반했는지 관리자가 지목하는 것) — **관리자만** 버튼이 보임
+  - **근처 작업자에게 알림**(`notify-nearby-workers`) — **관리자만** 버튼이 보임
+  - **조치 완료 처리**(`resolve`) — **관리자 또는 이 이벤트의 위반자로 지정된 본인**만 버튼이 보임 (로그인 응답에 `workerId`가 없어서 이름으로 매칭 — 3번 "알아두면 좋은 특이사항" 참고)
 - 이벤트 자체는 `LogiSquare-ai` 서비스가 감지해서 만드는 것이라, 이 화면에서 새 위반을 직접 생성하는 기능은 없습니다 (예전 mock의 "새 위반 시뮬레이션" 버튼은 삭제됨).
-- 작업자 사이드바에도 "안전" 메뉴는 보이지만, 실제로는 관리자 전용 화면이라 클릭하면 `/home`으로 리다이렉트됩니다.
 
 ### 근태 관리
 - 관리자: 전체 작업자 근태 통계, 지표 헤더 클릭 시 하단 막대그래프 전환.
