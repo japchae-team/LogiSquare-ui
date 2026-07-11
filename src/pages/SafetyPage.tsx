@@ -202,6 +202,7 @@ export default function SafetyPage() {
 function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; onClose: () => void; onChanged: () => void }) {
   const { user } = useAuth()
   const { showToast } = useToast()
+  const isAdmin = user?.role === 'admin'
   const [detail, setDetail] = useState<SafetyEventDetail | null>(null)
   const [workers, setWorkers] = useState<WorkerOption[]>([])
   const [selectedWorkerId, setSelectedWorkerId] = useState('')
@@ -216,13 +217,16 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
 
   useEffect(() => {
     loadDetail()
+    if (!isAdmin) return
     fetch('/api/attendance/workers/stats')
       .then((res) => (res.ok ? (res.json() as Promise<WorkerOption[]>) : []))
       .then(setWorkers)
       .catch(() => setWorkers([]))
-  }, [loadDetail])
+  }, [loadDetail, isAdmin])
 
   const resolved = detail ? RESOLVED_STATUSES.has(detail.status) : false
+  // 조치 완료는 관리자, 또는 이 사건의 위반자로 지정된 본인만 가능 (이름 매칭 — 로그인 응답에 workerId가 없어서)
+  const canResolve = isAdmin || (!!detail?.workerName && detail.workerName === user?.name)
 
   async function handleAssign() {
     if (!selectedWorkerId) return
@@ -360,7 +364,7 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
             </div>
 
             <div className="mt-5 space-y-2">
-              {!detail.workerName && !resolved && (
+              {isAdmin && !detail.workerName && !resolved && (
                 <div className="flex gap-2">
                   <select
                     value={selectedWorkerId}
@@ -383,14 +387,16 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
                   </button>
                 </div>
               )}
-              <button
-                onClick={handleNotifyNearby}
-                disabled={busy}
-                className="w-full rounded-lg bg-slate-700 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                근처 작업자에게 알림
-              </button>
-              {!resolved && (
+              {isAdmin && (
+                <button
+                  onClick={handleNotifyNearby}
+                  disabled={busy}
+                  className="w-full rounded-lg bg-slate-700 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  근처 작업자에게 알림
+                </button>
+              )}
+              {!resolved && canResolve && (
                 <button
                   onClick={handleResolve}
                   disabled={busy}

@@ -39,9 +39,7 @@ export default function App() {
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
               <Route path="/home" element={<HomePage />} />
-              <Route element={<RequireAdmin />}>
-                <Route path="/safety" element={<SafetyPage />} />
-              </Route>
+              <Route path="/safety" element={<SafetyPage />} />
               <Route path="/attendance" element={<AttendancePage />} />
               <Route path="/calls" element={<CallApprovalPage />} />
               <Route path="/logistics" element={<LogisticsPage />}>
