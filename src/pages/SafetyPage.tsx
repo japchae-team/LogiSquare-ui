@@ -45,11 +45,19 @@ function formatDateTime(iso: string | null) {
 }
 
 export default function SafetyPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [events, setEvents] = useState<SafetyEventSummary[]>([])
   const [search, setSearch] = useState('')
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
   const [liveAlerts, setLiveAlerts] = useState<SafetyEventSummary[]>([])
   const seenIds = useRef<Set<number> | null>(null)
+
+  // 위반자 이름은 관리자, 또는 본인이 위반자로 지정된 경우에만 보여준다
+  function visibleWorkerName(name: string | null) {
+    if (!name) return null
+    return isAdmin || name === user?.name ? name : null
+  }
 
   const loadEvents = useCallback(() => {
     fetch('/api/safety/events')
@@ -104,23 +112,26 @@ export default function SafetyPage() {
         {activeEvents.length === 0 && (
           <p className="col-span-full text-sm text-slate-400">현재 발생 중인 위반이 없습니다</p>
         )}
-        {activeEvents.map((e) => (
-          <button
-            key={e.eventId}
-            onClick={() => setSelectedEventId(e.eventId)}
-            className="animate-pulse rounded-xl border-2 border-red-300 bg-red-50 p-4 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white">⚠️</span>
-              <div>
-                <p className="text-sm font-bold text-red-700">{e.eventTypeLabel}</p>
-                <p className="text-xs text-slate-500">{e.storageLocationName ?? '-'}</p>
+        {activeEvents.map((e) => {
+          const workerName = visibleWorkerName(e.workerName)
+          return (
+            <button
+              key={e.eventId}
+              onClick={() => setSelectedEventId(e.eventId)}
+              className="animate-pulse rounded-xl border-2 border-red-300 bg-red-50 p-4 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white">⚠️</span>
+                <div>
+                  <p className="text-sm font-bold text-red-700">{e.eventTypeLabel}</p>
+                  <p className="text-xs text-slate-500">{e.storageLocationName ?? '-'}</p>
+                </div>
               </div>
-            </div>
-            <p className="mt-2 text-xs text-slate-400">{formatDateTime(e.occurredAt)}</p>
-            <p className="mt-1 text-xs text-slate-500">{e.workerName ? `위반자: ${e.workerName}` : '위반자 미확인'}</p>
-          </button>
-        ))}
+              <p className="mt-2 text-xs text-slate-400">{formatDateTime(e.occurredAt)}</p>
+              <p className="mt-1 text-xs text-slate-500">{workerName ? `위반자: ${workerName}` : '위반자 미확인'}</p>
+            </button>
+          )
+        })}
       </div>
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -153,7 +164,7 @@ export default function SafetyPage() {
               >
                 <td className="px-4 py-3 font-medium text-slate-800">{e.eventTypeLabel}</td>
                 <td className="px-4 py-3 text-slate-600">{e.storageLocationName ?? '-'}</td>
-                <td className="px-4 py-3 text-slate-600">{e.workerName ?? '-'}</td>
+                <td className="px-4 py-3 text-slate-600">{visibleWorkerName(e.workerName) ?? '-'}</td>
                 <td className="px-4 py-3 text-slate-600">{formatDateTime(e.occurredAt)}</td>
                 <td className="px-4 py-3">
                   {RESOLVED_STATUSES.has(e.status) ? (
@@ -346,14 +357,9 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
                   )}
                 </p>
               )}
-              {detail.workerName && (
+              {detail.workerName && (isAdmin || detail.workerName === user?.name) && (
                 <p>
                   위반자: <span className="font-semibold">{detail.workerName}</span>
-                </p>
-              )}
-              {detail.resolvedByName && (
-                <p>
-                  처리자: <span className="font-semibold">{detail.resolvedByName}</span>
                 </p>
               )}
               {detail.resolutionMemo && (
