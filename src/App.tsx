@@ -15,7 +15,7 @@ import OutboundPage from './pages/logistics/OutboundPage'
 
 function RequireAdmin() {
   const { user } = useAuth()
-  if (user?.role !== 'admin') return <Navigate to="/logistics/status" replace />
+  if (user?.role !== 'admin') return <Navigate to="/home" replace />
   return <Outlet />
 }
 
@@ -39,7 +39,9 @@ export default function App() {
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
               <Route path="/home" element={<HomePage />} />
-              <Route path="/safety" element={<SafetyPage />} />
+              <Route element={<RequireAdmin />}>
+                <Route path="/safety" element={<SafetyPage />} />
+              </Route>
               <Route path="/attendance" element={<AttendancePage />} />
               <Route path="/calls" element={<CallApprovalPage />} />
               <Route path="/logistics" element={<LogisticsPage />}>

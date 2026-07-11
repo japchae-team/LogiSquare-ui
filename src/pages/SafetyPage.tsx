@@ -96,7 +96,7 @@ export default function SafetyPage() {
     <div>
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-900">안전 관리</h2>
-        <p className="text-sm text-slate-500">실시간 위반 현황과 이력을 관리합니다</p>
+        <p className="text-sm text-slate-500">실시간 위반 현황을 확인하고, 캡처 이미지를 보고 위반자를 지정·처리합니다</p>
       </div>
 
       <h3 className="mb-3 text-sm font-semibold text-slate-700">현재 발생 중인 위반 ({activeEvents.length})</h3>
@@ -118,7 +118,7 @@ export default function SafetyPage() {
               </div>
             </div>
             <p className="mt-2 text-xs text-slate-400">{formatDateTime(e.occurredAt)}</p>
-            <p className="mt-1 text-xs text-slate-500">{e.workerName ? `담당: ${e.workerName}` : '담당자 미지정'}</p>
+            <p className="mt-1 text-xs text-slate-500">{e.workerName ? `위반자: ${e.workerName}` : '위반자 미확인'}</p>
           </button>
         ))}
       </div>
@@ -139,7 +139,7 @@ export default function SafetyPage() {
             <tr>
               <th className="px-4 py-3">유형</th>
               <th className="px-4 py-3">구역</th>
-              <th className="px-4 py-3">담당 작업자</th>
+              <th className="px-4 py-3">위반자</th>
               <th className="px-4 py-3">발생 시각</th>
               <th className="px-4 py-3">상태</th>
             </tr>
@@ -234,10 +234,10 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
         body: JSON.stringify({ workerId: Number(selectedWorkerId), assignedByUserId: user ? Number(user.id) : undefined }),
       })
       if (!res.ok) {
-        showToast('작업자 지정에 실패했습니다', 'alert')
+        showToast('위반자 지정에 실패했습니다', 'alert')
         return
       }
-      showToast('작업자를 지정했습니다')
+      showToast('위반자를 지정했습니다')
       loadDetail()
       onChanged()
     } finally {
@@ -344,7 +344,7 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
               )}
               {detail.workerName && (
                 <p>
-                  담당 작업자: <span className="font-semibold">{detail.workerName}</span>
+                  위반자: <span className="font-semibold">{detail.workerName}</span>
                 </p>
               )}
               {detail.resolvedByName && (
@@ -367,7 +367,7 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
                     onChange={(e) => setSelectedWorkerId(e.target.value)}
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none"
                   >
-                    <option value="">작업자 선택</option>
+                    <option value="">위반자 선택</option>
                     {workers.map((w) => (
                       <option key={w.workerId} value={w.workerId}>
                         {w.name}
