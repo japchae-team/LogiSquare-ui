@@ -2,7 +2,7 @@
 
 관리자와 현장 작업자가 함께 쓰는 창고 운영 대시보드입니다. 입고 배치, 재고 현황, 출고, 작업자 호출, 안전 위반 모니터링, 근태 관리를 한 화면에서 처리합니다.
 
-**안전 관리(SafetyPage) 화면을 제외한 전체 기능이 실제 백엔드(`https://logisquare.p-e.kr`)와 연동되어 있습니다.** 이 문서는 어떤 화면이 어떤 API를 쓰는지, 그리고 실제 연동 과정에서 알게 된 특이사항/제약을 팀원이 빠르게 파악할 수 있도록 정리한 것입니다.
+**전체 기능이 실제 백엔드(`https://logisquare.p-e.kr`)와 연동되어 있습니다.** 안전 관리는 별도 AI/CCTV 서비스(`LogiSquare-ai`)가 감지한 이벤트를 메인 백엔드의 `/api/safety/*`로 관리합니다. 이 문서는 어떤 화면이 어떤 API를 쓰는지, 그리고 실제 연동 과정에서 알게 된 특이사항/제약을 팀원이 빠르게 파악할 수 있도록 정리한 것입니다.
 
 ## 기술 스택
 
@@ -44,11 +44,10 @@ src/
 │
 ├─ context/
 │  ├─ AuthContext.tsx         # 로그인 세션 (sessionStorage 영속화), 역할(admin/worker)
-│  ├─ SafetyContext.tsx       # 안전 위반 로그 — 아직 mock (관련 API 없음)
 │  └─ ToastContext.tsx        # 화면 우하단 토스트 알림
 │
 ├─ data/
-│  └─ mockData.ts             # GRADE_COLOR, SafetyContext용 mock 위반 이력만 남음
+│  └─ mockData.ts             # GRADE_COLOR(등급별 색상)만 남은 상수 파일
 │
 ├─ components/
 │  ├─ Layout.tsx               # 좌측 사이드바(모바일은 햄버거) + 역할별 메뉴
@@ -60,7 +59,7 @@ src/
 ├─ pages/
 │  ├─ LoginPage.tsx                 # 이미 로그인 상태면 /home으로 리다이렉트
 │  ├─ HomePage.tsx                   # 대시보드 숫자 4개 + 상세 목록
-│  ├─ SafetyPage.tsx                  # mock 데이터 기반 (미연동)
+│  ├─ SafetyPage.tsx                  # 안전 위반 이력 + 상세 모달 (지정/해결/알림), 실시간 폴링
 │  ├─ AttendancePage.tsx               # 근태 통계 — 실제 API
 │  ├─ CallApprovalPage.tsx              # 작업자: 호출 대기→승인/거절→처리완료
 │  └─ logistics/
@@ -73,7 +72,7 @@ src/
    └─ sound.ts                # 안전 위반 발생 시 경고음 (Web Audio API)
 ```
 
-`InventoryContext`, `CallContext`는 실제 API 연동 후 삭제되어 더 이상 존재하지 않습니다.
+`InventoryContext`, `CallContext`, `SafetyContext`는 실제 API 연동 후 삭제되어 더 이상 존재하지 않습니다.
 
 ---
 
@@ -92,6 +91,11 @@ src/
 | `/api/tasks/{taskId}/complete` | PATCH | 처리완료 — task 타입에 따라 재고를 **자동으로 가감**함 (입고=추가, 출고=차감) |
 | `/api/tasks/my-calls?workerId=` | GET | 호출 승인 페이지, 홈(작업자 "대기 중인 호출" 카드) |
 | `/api/inventories/layout`, `/search?itemName=` | GET | 배치 현황(지도+검색+목록), 출고 품목 선택 |
+| `/api/safety/events` (+ `eventType`/`status`/`storageLocationCode` 필터) | GET | 안전 관리 목록 + "현재 발생 중인 위반" |
+| `/api/safety/events/{eventId}` | GET | 안전 이벤트 상세 모달 (captureUrl, 보호장비 착용 여부 등) |
+| `/api/safety/events/{eventId}/assign-worker` | PATCH | 위반 담당 작업자 지정 |
+| `/api/safety/events/{eventId}/resolve` | PATCH | 조치 완료 처리 |
+| `/api/safety/events/{eventId}/notify-nearby-workers` | POST | 근처 작업자에게 알림 (출고 호출과 동일하게 Wi-Fi RSSI 필요) |
 | `/api/dev/wifi-signals/dummy` | POST | **UI에서 호출 안 함** — 개발용 Wi-Fi 더미 신호 주입 (아래 3번 참고) |
 
 ---
@@ -110,7 +114,9 @@ src/
 
 - **`PATCH /api/tasks/{taskId}/complete`가 재고 반영의 유일한 지점입니다.** 입고는 target 위치에 재고를 더하고, 출고는 source 위치에서 재고를 뺍니다. 호출(call)이나 승인(accept)만으로는 재고가 바뀌지 않습니다.
 
-- **재고/창고 데이터를 CRUD하는 화면은 여전히 mock인 부분이 있습니다.** 안전 관리(`SafetyPage`)는 관련 백엔드 API가 아직 없어 `mockData.ts`의 위반 이력을 그대로 씁니다.
+- **안전 관리 이벤트의 `captureUrl`이 두 가지 형식으로 섞여 있습니다.** 최근 이벤트는 AI 서버(`LogiSquare-ai`)의 절대경로(`http://<ai-server>:8000/uploads/...`)를 쓰고, 일부 과거 데이터는 우리 도메인 기준 상대경로(`/uploads/...`)로 저장돼 있어 이 경우 이미지가 안 뜹니다 (우리 nginx가 `/uploads/`를 프록시하지 않음). `<img src={captureUrl}>`을 그대로 쓰고 있어서, 상대경로 데이터는 백엔드/AI 쪽에서 정리되기 전까진 깨져 보일 수 있습니다.
+
+- **안전 이벤트 목록은 `SafetyPage.tsx`가 15초마다 폴링합니다.** 새로 감지된(미해결 상태) 이벤트가 있으면 우상단에 5초짜리 알림 + 경고음이 뜹니다. 최초 로드 시점의 이벤트는 알림 대상에서 제외됩니다(과거 이력까지 전부 알림이 뜨는 걸 방지).
 
 ---
 
@@ -119,7 +125,7 @@ src/
 ```
 /                    로그인 (로그인 상태면 /home으로 자동 리다이렉트)
 /home                양쪽 공통
-/safety              양쪽 공통 (mock)
+/safety              양쪽 공통
 /attendance          양쪽 공통 (내용은 역할별로 분기)
 /calls               작업자 전용 화면이지만 라우트 가드는 없음 — 관리자는 사이드바에 메뉴 자체가 없음
 /logistics
@@ -143,16 +149,17 @@ src/
 
 ### 메인 홈
 - 카드 4개(진행 중 작업 수 / 가용 작업자 수 / 안전 위반 건수 / 관리자는 입고 대기·작업자는 대기 중인 호출)를 클릭하면 아래에 상세 목록이 토글됩니다.
-- 안전 위반 건수만 아직 mock(`SafetyContext`) 기반이고, 나머지는 전부 `/api/dashboard/summary` 실제 데이터.
+- 4개 전부 `/api/dashboard/summary` 실제 데이터 (작업자의 "대기 중인 호출"만 `/api/tasks/my-calls`).
 
 ### 물류 관리 (`/logistics`)
 - **입고 및 배치** (관리자 전용): 품목명+수량 입력 → "입고 등록"(`/api/inbound/recommend`, 즉시 커밋) → "작업자 호출"(`/api/tasks/{id}/inbound-call`, 가용 작업자 전체 호출).
 - **배치 현황** (공통): `/api/inventories/layout`(기본) 또는 `/search?itemName=`(검색 중)로 창고 그리드 + 재고 목록을 그림. 관리자는 검색된 품목 전량에 대해 "작업자 호출 (출고 지시)" 가능 (`/api/outbound` → `/api/tasks/{id}/outbound-call`).
 - **출고** (작업자 전용): 재고 목록에서 품목 선택 → 수량 입력 → "출고 처리"(`/api/outbound`로 작업 생성) → "작업자 호출"(`/api/tasks/{id}/outbound-call`).
 
-### 안전 관리 (미연동, mock)
-- "현재 발생 중인 위반" 카드 + 5초짜리 실시간 알림 팝업(소리 포함), 유형별 테이블 2개.
-- "새 위반 시뮬레이션" 버튼은 실제 카메라/센서가 없는 데모 환경에서 기능을 시연하기 위한 버튼입니다.
+### 안전 관리
+- "현재 발생 중인 위반" 카드 그리드(미해결 이벤트) + 5초짜리 실시간 알림 팝업(소리 포함) + 전체 이력 테이블. 행/카드를 클릭하면 상세 모달이 열립니다.
+- 상세 모달: CCTV 캡처 이미지, 보호장비 착용 여부, 담당 작업자 지정(`assign-worker`), 근처 작업자 알림(`notify-nearby-workers`), 조치 완료 처리(`resolve`).
+- 이벤트 자체는 `LogiSquare-ai` 서비스가 감지해서 만드는 것이라, 이 화면에서 새 위반을 직접 생성하는 기능은 없습니다 (예전 mock의 "새 위반 시뮬레이션" 버튼은 삭제됨).
 
 ### 근태 관리
 - 관리자: 전체 작업자 근태 통계, 지표 헤더 클릭 시 하단 막대그래프 전환.
@@ -167,8 +174,8 @@ src/
 
 ## 6. 남은 작업
 
-- 안전 관리 API 연동 (백엔드에 아직 없음)
 - 대시보드 상세 목록 Top5 제한 → 실제 페이지네이션 API로 교체
 - 출고 중복 요청을 서버 쪽에서도 막을 수 있는 검증(또는 취소 API) 추가
 - 로그인 응답에 `workerId` 포함 (현재 이름 매칭으로 우회 중)
 - 실제 Wi-Fi 신호 수집 로직으로 더미 API 대체
+- 안전 이벤트 `captureUrl` 저장 형식 통일 (절대경로/상대경로 혼재 정리)
