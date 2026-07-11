@@ -60,8 +60,6 @@ export default function LoginPage() {
         >
           {submitting ? '로그인 중...' : '로그인'}
         </button>
-
-        <p className="mt-4 text-center text-xs text-slate-400">실제 백엔드 계정으로 로그인하세요</p>
       </form>
     </div>
   )
