@@ -60,7 +60,7 @@ src/
 │  ├─ LoginPage.tsx                 # 이미 로그인 상태면 /home으로 리다이렉트
 │  ├─ HomePage.tsx                   # 대시보드 숫자 4개 + 상세 목록
 │  ├─ SafetyPage.tsx                  # 안전 위반 이력 + 상세 모달 (지정/해결/알림), 실시간 폴링
-│  ├─ AttendancePage.tsx               # 근태 통계 — 실제 API
+│  ├─ AttendancePage.tsx               # 근태 통계 — 실제 API, 작업자는 본인 지표 클릭 시 상세 내역 모달
 │  ├─ CallApprovalPage.tsx              # 작업자: 호출 대기→승인/거절→처리완료
 │  └─ logistics/
 │     ├─ LogisticsPage.tsx              # 탭 컨테이너 (역할별 탭 분기)
@@ -91,7 +91,8 @@ src/
 | `/api/tasks/{taskId}/complete` | PATCH | 처리완료 — task 타입에 따라 재고를 **자동으로 가감**함 (입고=추가, 출고=차감) |
 | `/api/tasks/my-calls?workerId=` | GET | 호출 승인 페이지, 홈(작업자 "대기 중인 호출" 카드) |
 | `/api/inventories/layout`, `/search?itemName=` | GET | 배치 현황(지도+검색+목록), 출고 품목 선택 |
-| `/api/safety/events` (+ `eventType`/`status`/`storageLocationCode` 필터) | GET | 안전 관리 목록 + "현재 발생 중인 위반" |
+| `/api/workers/{workerId}/assignments` | GET | 근태 관리 — 작업자 본인의 "호출 수락 횟수"/"처리 작업 건수" 상세 모달 (CANCELED 상태는 응답에서 제외됨) |
+| `/api/safety/events` (+ `eventType`/`status`/`storageLocationCode` 필터) | GET | 안전 관리 목록 + "현재 발생 중인 위반", 근태 관리 "안전 위반 횟수" 상세 모달(응답의 `workerId`로 클라이언트에서 필터) |
 | `/api/safety/events/{eventId}` | GET | 안전 이벤트 상세 모달 (captureUrl, 보호장비 착용 여부 등) |
 | `/api/safety/events/{eventId}/assign-worker` | PATCH | **위반자** 지정 — 캡처 이미지를 보고 관리자가 "누가 위반했는지"를 지목하는 것이지, 조치하러 갈 사람을 배정하는 게 아님. **관리자 전용** |
 | `/api/safety/events/{eventId}/resolve` | PATCH | 조치 완료 처리. **관리자 또는 해당 이벤트의 위반자로 지정된 본인만** (프론트에서 `workerName === 로그인한 이름`으로 매칭) |
@@ -102,7 +103,9 @@ src/
 
 ## 3. 알아두면 좋은 특이사항 / 제약
 
-- **로그인 응답에 `workerId`가 없음.** `User.id`(로그인 계정 PK)와 `Worker.id`(근태·호출 API가 쓰는 PK)가 서로 다른 값이라, `AttendancePage`/`CallApprovalPage`/홈 화면에서는 `/api/attendance/workers/stats`로 전체 작업자를 조회한 뒤 **이름으로 매칭**해서 본인의 `workerId`를 찾아냅니다. 동명이인이 있으면 깨질 수 있는 임시방편입니다.
+- **로그인 응답에 `workerId`가 없음.** `User.id`(로그인 계정 PK)와 `Worker.id`(근태·호출 API가 쓰는 PK)가 서로 다른 값이라, `AttendancePage`/`CallApprovalPage`/홈 화면에서는 `/api/attendance/workers/stats`로 전체 작업자를 조회한 뒤 **이름으로 매칭**해서 본인의 `workerId`를 찾아냅니다. 동명이인이 있으면 깨질 수 있는 임시방편입니다. `AttendancePage`는 이렇게 찾은 `workerId`를 상세 모달(`/api/workers/{workerId}/assignments`) 조회에도 그대로 재사용합니다.
+
+- **입고 호출은 가용 작업자 전체에게 `TaskAssignment`가 하나씩 생깁니다.** 그래서 근태 통계의 "호출 수락 횟수"/"처리 작업 건수"는 반드시 **그 assignment 자신의 `status`**로 걸러야 합니다 — `respondedAt`이 찍혔다고 다 수락은 아니고(거절도 응답 시각이 찍힘), `task.completedAt`이 찍혔다고 그 worker가 처리한 것도 아닙니다(같은 task에 호출된 다른 작업자들도 전부 `completedAt`을 공유함). `AttendanceService.toResponse()`가 `status`가 `ACCEPTED`/`COMPLETED`인 것만 세도록 되어 있고, `AttendancePage`의 상세 모달 필터도 반드시 이 기준과 동일하게 맞춰야 요약 숫자와 상세 목록 개수가 어긋나지 않습니다.
 
 - **출고 호출은 Wi-Fi 더미 신호가 필요합니다.** `outbound-call`은 Redis에 저장된 Wi-Fi RSSI 신호로 "가장 가까운 작업자"를 계산하는데, 이 신호는 `POST /api/dev/wifi-signals/dummy`로 사람이 직접 넣어야 하고 **최대 TTL이 1시간**(서버 측 제한)이라 주기적으로 재주입해야 합니다. 신호가 없으면 `outbound-call`이 400과 함께 `"No worker Wi-Fi RSSI found for AP-xx"`를 반환하는데, 프론트는 이걸 뭉뚱그려 "현재 가용한 작업자가 없습니다"로 보여줍니다 — 실제로는 작업자가 없는 게 아니라 신호가 만료된 것일 수 있습니다. (반대로 `inbound-call`은 Wi-Fi 신호 없이도 동작합니다 — 가용 작업자 전체를 그냥 부르는 로직이라서요.)
 
@@ -167,7 +170,7 @@ src/
 
 ### 근태 관리
 - 관리자: 전체 작업자 근태 통계, 지표 헤더 클릭 시 하단 막대그래프 전환.
-- 작업자: 본인 행만 노출 (이름 매칭, 위 3번 참고), 그래프 섹션은 숨겨짐.
+- 작업자: 본인 행만 노출 (이름 매칭, 위 3번 참고), 그래프 섹션은 숨겨짐. 대신 본인 행의 **호출 수락 횟수 / 처리 작업 건수 / 안전 위반 횟수 숫자를 클릭하면 상세 모달**이 열려서 그 숫자를 구성하는 개별 내역(품목/수량/위치/시각, 또는 위반 유형/구역/시각)을 확인할 수 있습니다. 선택된 기간(일/주/월/년) 기준으로 필터링되며, 모달에 뜨는 개수는 항상 표의 요약 숫자와 정확히 같습니다.
 - 기간 필터(일/주/월/년)는 `/api/attendance/workers/stats?period=`에 그대로 전달되어 백엔드가 실제 기간별로 집계.
 
 ### 호출 승인 (작업자 전용)
