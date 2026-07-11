@@ -36,14 +36,4 @@ export interface InventoryItemRecord {
   locationLabel: string
 }
 
-export type ViolationType = '보호장비 미착용' | '위험구역 침입'
-
-export interface ViolationLog {
-  id: string
-  time: string
-  zone: string
-  type: ViolationType
-  active: boolean
-}
-
 export type Period = '일' | '주' | '월' | '년'

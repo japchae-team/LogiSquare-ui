@@ -36,6 +36,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/safety/events/{eventId}/notify-nearby-workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["notifyNearbyWorkers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/safety/events/ai-cctv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createAiCctvEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/outbound": {
         parameters: {
             query?: never;
@@ -164,6 +196,38 @@ export interface paths {
         patch: operations["accept"];
         trace?: never;
     };
+    "/api/safety/events/{eventId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["resolve"];
+        trace?: never;
+    };
+    "/api/safety/events/{eventId}/assign-worker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["assignWorker"];
+        trace?: never;
+    };
     "/api/workers/{workerId}/assignments": {
         parameters: {
             query?: never;
@@ -188,6 +252,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getMyCalls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/safety/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/safety/events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getEvent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -287,6 +383,80 @@ export interface components {
             locationPosY?: number;
             /** Format: date-time */
             calledAt?: string;
+        };
+        NotifyNearbyWorkersRequest: {
+            /** Format: int32 */
+            maxWorkers?: number;
+        };
+        NotifiedWorkerResponse: {
+            /** Format: int64 */
+            workerId?: number;
+            employeeNo?: string;
+            workerName?: string;
+            /** Format: int32 */
+            rssi?: number;
+            alarmKey?: string;
+        };
+        NotifyNearbyWorkersResponse: {
+            /** Format: int64 */
+            eventId?: number;
+            /** Format: int64 */
+            storageLocationId?: number;
+            storageLocationCode?: string;
+            nearestAccessPointCode?: string;
+            /** Format: int32 */
+            notifiedCount?: number;
+            notifiedWorkers?: components["schemas"]["NotifiedWorkerResponse"][];
+            /** Format: date-time */
+            notifiedAt?: string;
+        };
+        AiCctvSafetyDetectionRequest: {
+            label?: string;
+            confidence?: number;
+        };
+        AiCctvSafetyEventData: {
+            sourceType?: string;
+            eventType?: string;
+            confidenceScore?: number;
+            helmetWorn?: boolean;
+            vestWorn?: boolean;
+            annotatedImageUrl?: string;
+            detections?: components["schemas"]["AiCctvSafetyDetectionRequest"][];
+            /** Format: int32 */
+            count?: number;
+            cameraCode?: string;
+            /** Format: int64 */
+            storageLocationId?: number;
+            storageLocationCode?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
+        AiCctvSafetyEventRequest: {
+            success?: boolean;
+            data?: components["schemas"]["AiCctvSafetyEventData"];
+            message?: string;
+            sourceType?: string;
+            eventType?: string;
+            confidenceScore?: number;
+            helmetWorn?: boolean;
+            vestWorn?: boolean;
+            annotatedImageUrl?: string;
+            detections?: components["schemas"]["AiCctvSafetyDetectionRequest"][];
+            /** Format: int32 */
+            count?: number;
+            cameraCode?: string;
+            /** Format: int64 */
+            storageLocationId?: number;
+            storageLocationCode?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
+        AiCctvSafetyEventResponse: {
+            /** Format: int64 */
+            id?: number;
+            status?: string;
+            /** Format: date-time */
+            occurredAt?: string;
         };
         OutboundRequest: {
             /** Format: int64 */
@@ -429,6 +599,31 @@ export interface components {
             /** Format: date-time */
             completedAt?: string;
         };
+        ResolveSafetyEventRequest: {
+            /** Format: int64 */
+            resolvedByUserId?: number;
+            resolutionMemo?: string;
+        };
+        SafetyEventActionResponse: {
+            /** Format: int64 */
+            eventId?: number;
+            status?: string;
+            /** Format: int64 */
+            workerId?: number;
+            workerEmployeeNo?: string;
+            workerName?: string;
+            /** Format: date-time */
+            assignedAt?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+        };
+        AssignSafetyEventWorkerRequest: {
+            /** Format: int64 */
+            workerId?: number;
+            employeeNo?: string;
+            /** Format: int64 */
+            assignedByUserId?: number;
+        };
         WorkerAssignmentResponse: {
             /** Format: int64 */
             assignmentId?: number;
@@ -449,6 +644,78 @@ export interface components {
             targetLocationCode?: string;
             /** Format: date-time */
             calledAt?: string;
+        };
+        SafetyEventListResponse: {
+            /** Format: int64 */
+            totalCount?: number;
+            /** Format: int64 */
+            activeCount?: number;
+            /** Format: int64 */
+            resolvedCount?: number;
+            events?: components["schemas"]["SafetyEventSummaryResponse"][];
+        };
+        SafetyEventSummaryResponse: {
+            /** Format: int64 */
+            eventId?: number;
+            eventType?: string;
+            eventTypeLabel?: string;
+            status?: string;
+            statusLabel?: string;
+            /** Format: int64 */
+            storageLocationId?: number;
+            storageLocationCode?: string;
+            storageLocationName?: string;
+            captureUrl?: string;
+            /** Format: int64 */
+            workerId?: number;
+            workerEmployeeNo?: string;
+            workerName?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+        };
+        SafetyEventDetailResponse: {
+            /** Format: int64 */
+            eventId?: number;
+            eventType?: string;
+            eventTypeLabel?: string;
+            sourceType?: string;
+            status?: string;
+            statusLabel?: string;
+            captureUrl?: string;
+            confidenceScore?: number;
+            helmetWorn?: boolean;
+            vestWorn?: boolean;
+            shoesWorn?: boolean;
+            /** Format: int64 */
+            storageLocationId?: number;
+            storageLocationCode?: string;
+            storageLocationName?: string;
+            /** Format: int32 */
+            storagePosX?: number;
+            /** Format: int32 */
+            storagePosY?: number;
+            /** Format: int64 */
+            cameraId?: number;
+            cameraCode?: string;
+            /** Format: int64 */
+            workerId?: number;
+            workerEmployeeNo?: string;
+            workerName?: string;
+            /** Format: int64 */
+            assignedByUserId?: number;
+            assignedByName?: string;
+            /** Format: date-time */
+            assignedAt?: string;
+            /** Format: int64 */
+            resolvedByUserId?: number;
+            resolvedByName?: string;
+            resolutionMemo?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
         };
         InventorySearchResponse: {
             keyword?: string;
@@ -645,6 +912,56 @@ export interface operations {
             };
         };
     };
+    notifyNearbyWorkers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NotifyNearbyWorkersRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotifyNearbyWorkersResponse"];
+                };
+            };
+        };
+    };
+    createAiCctvEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiCctvSafetyEventRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AiCctvSafetyEventResponse"];
+                };
+            };
+        };
+    };
     createOutboundTask: {
         parameters: {
             query?: never;
@@ -831,6 +1148,58 @@ export interface operations {
             };
         };
     };
+    resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResolveSafetyEventRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SafetyEventActionResponse"];
+                };
+            };
+        };
+    };
+    assignWorker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignSafetyEventWorkerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SafetyEventActionResponse"];
+                };
+            };
+        };
+    };
     getAssignments: {
         parameters: {
             query?: never;
@@ -873,6 +1242,52 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WorkerAssignmentResponse"][];
+                };
+            };
+        };
+    };
+    getEvents: {
+        parameters: {
+            query?: {
+                eventType?: string;
+                status?: string;
+                storageLocationCode?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SafetyEventListResponse"];
+                };
+            };
+        };
+    };
+    getEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SafetyEventDetailResponse"];
                 };
             };
         };
