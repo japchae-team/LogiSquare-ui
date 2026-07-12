@@ -144,15 +144,16 @@ export default function SafetyPage() {
         />
       </div>
 
+      <p className="mb-2 text-xs text-slate-400 sm:hidden">← 옆으로 스크롤하면 위반자·시각·상태를 볼 수 있어요</p>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-3">유형</th>
-              <th className="px-4 py-3">구역</th>
-              <th className="px-4 py-3">위반자</th>
-              <th className="px-4 py-3">발생 시각</th>
-              <th className="px-4 py-3">상태</th>
+              <th className="whitespace-nowrap px-4 py-3">유형</th>
+              <th className="whitespace-nowrap px-4 py-3">구역</th>
+              <th className="whitespace-nowrap px-4 py-3">위반자</th>
+              <th className="whitespace-nowrap px-4 py-3">발생 시각</th>
+              <th className="whitespace-nowrap px-4 py-3">상태</th>
             </tr>
           </thead>
           <tbody>
@@ -162,15 +163,15 @@ export default function SafetyPage() {
                 onClick={() => setSelectedEventId(e.eventId)}
                 className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
               >
-                <td className="px-4 py-3 font-medium text-slate-800">{e.eventTypeLabel}</td>
-                <td className="px-4 py-3 text-slate-600">{e.storageLocationName ?? '-'}</td>
-                <td className="px-4 py-3 text-slate-600">{visibleWorkerName(e.workerName) ?? '-'}</td>
-                <td className="px-4 py-3 text-slate-600">{formatDateTime(e.occurredAt)}</td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-800">{e.eventTypeLabel}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-600">{e.storageLocationName ?? '-'}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-600">{visibleWorkerName(e.workerName) ?? '-'}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDateTime(e.occurredAt)}</td>
+                <td className="whitespace-nowrap px-4 py-3">
                   {RESOLVED_STATUSES.has(e.status) ? (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">{e.statusLabel}</span>
+                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">{e.statusLabel}</span>
                   ) : (
-                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">{e.statusLabel}</span>
+                    <span className="whitespace-nowrap rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">{e.statusLabel}</span>
                   )}
                 </td>
               </tr>
@@ -186,7 +187,7 @@ export default function SafetyPage() {
         </table>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-4 top-4 z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-6 sm:top-6 sm:w-80">
+      <div className="pointer-events-none fixed inset-x-4 top-20 z-50 flex flex-col gap-2 md:inset-x-auto md:right-6 md:top-6 md:w-80">
         {liveAlerts.map((e) => (
           <div
             key={e.eventId}
