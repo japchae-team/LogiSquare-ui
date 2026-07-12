@@ -44,6 +44,11 @@ function formatDateTime(iso: string | null) {
   return new Date(iso).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+// 백엔드 상태(발생/작업자 지정 등)는 화면에서 진행 중/조치 완료 2단계로만 보여준다
+function displayStatus(status: string) {
+  return RESOLVED_STATUSES.has(status) ? '조치 완료' : '진행 중'
+}
+
 export default function SafetyPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -169,9 +174,9 @@ export default function SafetyPage() {
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDateTime(e.occurredAt)}</td>
                 <td className="whitespace-nowrap px-4 py-3">
                   {RESOLVED_STATUSES.has(e.status) ? (
-                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">{e.statusLabel}</span>
+                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">{displayStatus(e.status)}</span>
                   ) : (
-                    <span className="whitespace-nowrap rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">{e.statusLabel}</span>
+                    <span className="whitespace-nowrap rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">{displayStatus(e.status)}</span>
                   )}
                 </td>
               </tr>
@@ -331,7 +336,7 @@ function SafetyEventModal({ eventId, onClose, onChanged }: { eventId: number; on
 
             <div className="space-y-1.5 text-sm text-slate-700">
               <p>
-                상태: <span className="font-semibold">{detail.statusLabel}</span>
+                상태: <span className="font-semibold">{displayStatus(detail.status)}</span>
               </p>
               <p>
                 위치: <span className="font-semibold">{detail.storageLocationName ?? '-'} ({detail.storageLocationCode ?? '-'})</span>
